@@ -43,8 +43,7 @@ interface UseSubscriptionReturn {
  * ```
  */
 export function useSubscription(): UseSubscriptionReturn {
-  const { signMessage, publicKey, isConnected } = useLazorKit();
-  const smartWalletPubkey = publicKey ? new PublicKey(publicKey) : null;
+  const { signAndSendTransaction, publicKey, isConnected, smartWalletPubkey } = useLazorKit();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
@@ -81,7 +80,7 @@ export function useSubscription(): UseSubscriptionReturn {
       setError(null);
 
       try {
-        if (!signMessage) {
+        if (!signAndSendTransaction) {
           throw new Error('Wallet not fully initialized');
         }
 
@@ -95,8 +94,14 @@ export function useSubscription(): UseSubscriptionReturn {
           lamports: lamportsToSend > 0 ? lamportsToSend : 1000,
         });
 
-        // Sign and send with passkey (SDK 0.9.6 API)
-        const signature = await signMessage(transferInstruction);
+        // Sign and send with passkey (SDK 2.0.0 API)
+        const signature = await signAndSendTransaction({
+          instructions: [transferInstruction],
+          transactionOptions: {
+            feeToken: 'USDC',
+            computeUnitLimit: 200_000,
+          },
+        });
 
         // Record the transaction
         const txRecord: TransactionRecord = {
@@ -128,7 +133,7 @@ export function useSubscription(): UseSubscriptionReturn {
         setIsProcessing(false);
       }
     },
-    [isConnected, smartWalletPubkey, signMessage]
+    [isConnected, smartWalletPubkey, signAndSendTransaction]
   );
 
   return {

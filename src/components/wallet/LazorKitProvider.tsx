@@ -1,54 +1,34 @@
 'use client';
 
-import { ReactNode, useEffect, useState, createContext, useContext, useCallback } from 'react';
-import { Connection, TransactionInstruction } from '@solana/web3.js';
-import { useWallet } from '@lazorkit/wallet';
+import { ReactNode, useEffect, useState } from 'react';
+import { LazorkitProvider, useWallet } from '@lazorkit/wallet';
 import { Buffer } from 'buffer';
 
-const RPC_URL = 'https://rpc.lazorkit.xyz/';
-
-interface LazorKitContextType {
-  connection: Connection | null;
-  connect: () => Promise<void>;
-  disconnect: () => void;
-  signMessage: ((instruction: TransactionInstruction) => Promise<string>) | null;
-  isConnected: boolean;
-  isConnecting: boolean;
-  publicKey: string | null;
-  error: string | null;
+// Polyfill Buffer for browser environment
+if (typeof window !== 'undefined') {
+  window.Buffer = window.Buffer || Buffer;
 }
-
-const LazorKitContext = createContext<LazorKitContextType | undefined>(undefined);
 
 interface LazorKitWrapperProps {
   children: ReactNode;
 }
 
+// Configuration from environment variables
+const CONFIG = {
+  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.lazorkit.xyz/',
+  portalUrl: process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.lazor.sh',
+  paymasterUrl: process.env.NEXT_PUBLIC_PAYMASTER_URL || 'https://kora.devnet.lazorkit.com',
+};
+
 export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
   const [mounted, setMounted] = useState(false);
-  const [connection, setConnection] = useState<Connection | null>(null);
 
-  // Polyfills
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (!window.Buffer) {
-        window.Buffer = Buffer;
-      }
-    }
+    console.log('=== LAZORKIT PROVIDER INIT ===');
+    console.log('RPC:', CONFIG.rpcUrl);
+    console.log('Portal:', CONFIG.portalUrl);
+    console.log('Paymaster:', CONFIG.paymasterUrl);
     setMounted(true);
-  }, []);
-
-  // Initialize connection
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const conn = new Connection(RPC_URL, 'confirmed');
-      setConnection(conn);
-      console.log('=== LAZORKIT PROVIDER INIT ===');
-      console.log('RPC:', RPC_URL);
-    } catch (error) {
-      console.error('Failed to create connection:', error);
-    }
   }, []);
 
   if (!mounted) {
@@ -62,69 +42,49 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
   }
 
   return (
-    <LazorKitProviderInner connection={connection}>
+    <LazorkitProvider
+      rpcUrl={CONFIG.rpcUrl}
+      portalUrl={CONFIG.portalUrl}
+      paymasterConfig={{
+        paymasterUrl: CONFIG.paymasterUrl,
+      }}
+    >
       {children}
-    </LazorKitProviderInner>
+    </LazorkitProvider>
   );
 }
 
-function LazorKitProviderInner({
-  children,
-  connection
-}: {
-  children: ReactNode;
-  connection: Connection | null;
-}) {
-  // Use the wallet hook (no arguments in 0.9.6)
+// Re-export useWallet for components to use
+export { useWallet };
+
+// Custom hook that wraps useWallet with additional logging
+export function useLazorKit() {
   const wallet = useWallet();
 
-  const connect = useCallback(async () => {
-    console.log('=== CONNECT CALLED ===');
-    console.log('wallet.connect:', typeof wallet?.connect);
-
-    if (!wallet?.connect) {
-      console.error('Connect function not available');
-      return;
-    }
-    try {
+  return {
+    connect: async () => {
+      console.log('=== CONNECT CALLED ===');
       console.log('Calling wallet.connect()...');
-      await wallet.connect();
-      console.log('wallet.connect() completed');
-    } catch (err) {
-      console.error('Connect error:', err);
-    }
-  }, [wallet]);
-
-  const disconnect = useCallback(() => {
-    if (wallet?.disconnect) {
-      wallet.disconnect();
-    }
-  }, [wallet]);
-
-  const contextValue: LazorKitContextType = {
-    connection,
-    connect,
-    disconnect,
-    signMessage: wallet?.signMessage || null,
-    isConnected: wallet?.isConnected || false,
-    isConnecting: wallet?.isLoading || false,
-    publicKey: wallet?.publicKey || null,
-    error: wallet?.error || null,
+      try {
+        const result = await wallet.connect();
+        console.log('wallet.connect() completed:', result);
+        return result;
+      } catch (err) {
+        console.error('Connect error:', err);
+        throw err;
+      }
+    },
+    disconnect: wallet.disconnect,
+    signMessage: wallet.signMessage,
+    signAndSendTransaction: wallet.signAndSendTransaction,
+    isConnected: wallet.isConnected,
+    isConnecting: wallet.isConnecting,
+    publicKey: wallet.wallet?.smartWallet || null,
+    wallet: wallet.wallet,
+    smartWalletPubkey: wallet.smartWalletPubkey,
+    error: null,
+    connection: null,
   };
-
-  return (
-    <LazorKitContext.Provider value={contextValue}>
-      {children}
-    </LazorKitContext.Provider>
-  );
-}
-
-export function useLazorKit() {
-  const context = useContext(LazorKitContext);
-  if (!context) {
-    throw new Error('useLazorKit must be used within LazorKitWrapper');
-  }
-  return context;
 }
 
 export default LazorKitWrapper;

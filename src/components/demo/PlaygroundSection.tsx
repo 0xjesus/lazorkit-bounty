@@ -32,12 +32,12 @@ export function PlaygroundSection() {
     connect,
     disconnect,
     signMessage,
+    signAndSendTransaction,
     isConnected,
     isConnecting,
     publicKey,
+    smartWalletPubkey,
   } = useLazorKit();
-
-  const smartWalletPubkey = publicKey ? new PublicKey(publicKey) : null;
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isSigning, setIsSigning] = useState(false);
@@ -103,7 +103,7 @@ export function PlaygroundSection() {
     }
   };
 
-  // Step 2: Sign Message (using memo instruction as demo)
+  // Step 2: Sign Message
   const handleSignMessage = async () => {
     if (!isConnected || !signMessage) {
       addLog('error', 'Please connect wallet first');
@@ -115,17 +115,10 @@ export function PlaygroundSection() {
       addLog('pending', 'Requesting message signature...');
       addLog('info', 'Message: "Hello from LazorKit Playground!"');
 
-      // Create a memo instruction to sign
-      const memoInstruction = new TransactionInstruction({
-        keys: [],
-        programId: new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
-        data: Buffer.from('Hello from LazorKit Playground!'),
-      });
-
-      const signature = await signMessage(memoInstruction);
+      const result = await signMessage('Hello from LazorKit Playground!');
 
       addLog('success', 'Message signed successfully!');
-      addLog('info', `Signature: ${signature.slice(0, 20)}...`);
+      addLog('info', `Signature: ${result.signature.slice(0, 20)}...`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Signing failed';
       addLog('error', 'Message signing failed', message);
@@ -136,7 +129,7 @@ export function PlaygroundSection() {
 
   // Step 3: Send Gasless Transaction
   const handleSendTransaction = async () => {
-    if (!isConnected || !smartWalletPubkey || !signMessage) {
+    if (!isConnected || !smartWalletPubkey || !signAndSendTransaction) {
       addLog('error', 'Please connect wallet first');
       return;
     }
@@ -153,10 +146,17 @@ export function PlaygroundSection() {
       });
 
       addLog('info', 'Sending 100 lamports to self (demo)');
+      addLog('info', 'Gas fees sponsored by Paymaster');
       addLog('pending', 'Awaiting passkey signature...');
 
-      // Sign the instruction with passkey (SDK 0.9.6 API)
-      const txSignature = await signMessage(instruction);
+      // Sign and send with SDK 2.0.0 API
+      const txSignature = await signAndSendTransaction({
+        instructions: [instruction],
+        transactionOptions: {
+          feeToken: 'USDC',
+          computeUnitLimit: 200_000,
+        },
+      });
 
       setLastSignature(txSignature);
       addLog('success', 'Transaction confirmed! 🎉');
