@@ -1,7 +1,27 @@
+/**
+ * LazorKit Developer Playground
+ *
+ * This demo showcases LazorKit SDK v2.0.1 integration with Next.js.
+ *
+ * Key Features Demonstrated:
+ * - Passkey (WebAuthn) authentication
+ * - Smart wallet creation and management
+ * - Gasless transactions via Paymaster
+ * - Message signing
+ *
+ * @see https://docs.lazorkit.com for full SDK documentation
+ */
+
 "use client";
 
+// LazorKit SDK v2.0.1 - Main exports
+// LazorkitProvider: React context provider for SDK initialization
+// useWallet: Hook that provides wallet state and methods
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
+
+// Solana Web3.js - For creating transactions
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+
 import { useEffect, useState, useCallback } from "react";
 import {
   Fingerprint,
@@ -28,15 +48,31 @@ import {
   Users
 } from 'lucide-react';
 
-// Configuration
+/**
+ * LazorKit Configuration
+ *
+ * These endpoints connect your app to the LazorKit infrastructure:
+ * - RPC_URL: Solana RPC endpoint for blockchain queries
+ * - PORTAL_URL: LazorKit portal for WebAuthn authentication
+ * - PAYMASTER_URL: Kora paymaster service that sponsors gas fees
+ *
+ * For production, use environment variables:
+ * - NEXT_PUBLIC_RPC_URL
+ * - NEXT_PUBLIC_PORTAL_URL
+ * - NEXT_PUBLIC_PAYMASTER_URL
+ */
 const CONFIG = {
   RPC_URL: "https://api.devnet.solana.com",
   PORTAL_URL: "https://portal.lazor.sh",
   PAYMASTER_URL: "https://kora.devnet.lazorkit.com",
 };
 
+// Solana connection for balance queries
 const connection = new Connection(CONFIG.RPC_URL);
 
+/**
+ * Log entry for the activity log panel
+ */
 interface LogEntry {
   id: string;
   timestamp: Date;
@@ -45,7 +81,14 @@ interface LogEntry {
   details?: string;
 }
 
+/**
+ * WalletDemo Component
+ *
+ * Main demo component that showcases LazorKit SDK functionality.
+ * This component uses the useWallet hook from LazorKit SDK v2.0.1.
+ */
 function WalletDemo() {
+  // Local UI state
   const [balance, setBalance] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isSigning, setIsSigning] = useState(false);
@@ -53,7 +96,19 @@ function WalletDemo() {
   const [copied, setCopied] = useState(false);
   const [lastSignature, setLastSignature] = useState<string | null>(null);
 
-  // SDK 2.0.1 API
+  /**
+   * LazorKit SDK v2.0.1 useWallet Hook
+   *
+   * Returns:
+   * - wallet: WalletInfo object with smartWallet address and credentials
+   * - isConnecting: true while connection is in progress
+   * - isSigning: true while signing is in progress
+   * - error: Error object if something went wrong
+   * - connect(): Opens the passkey authentication portal
+   * - disconnect(): Clears the wallet session
+   * - signAndSendTransaction(): Signs and sends a transaction with paymaster
+   * - signMessage(): Signs an arbitrary message
+   */
   const {
     wallet,
     isConnecting,
@@ -65,12 +120,17 @@ function WalletDemo() {
     signMessage
   } = useWallet();
 
-  // Derived state
+  /**
+   * Derived wallet state
+   *
+   * wallet.smartWallet contains the user's Solana address.
+   * This is a PDA (Program Derived Address) controlled by the LazorKit program.
+   */
   const isConnected = !!wallet?.smartWallet;
   const smartWalletAddress = wallet?.smartWallet || null;
   const smartWalletPubkey = smartWalletAddress ? new PublicKey(smartWalletAddress) : null;
 
-  // Add log entry
+  // Activity log helper
   const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
     const entry: LogEntry = {
       id: crypto.randomUUID(),
@@ -79,16 +139,15 @@ function WalletDemo() {
       message,
       details,
     };
-    setLogs((prev) => [entry, ...prev].slice(0, 20));
+    setLogs((prev) => [entry, ...prev].slice(0, 20)); // Keep last 20 entries
   }, []);
 
-  // Clear logs
   const clearLogs = useCallback(() => {
     setLogs([]);
     setLastSignature(null);
   }, []);
 
-  // Copy address
+  // Copy wallet address to clipboard
   const copyAddress = async () => {
     if (smartWalletAddress) {
       await navigator.clipboard.writeText(smartWalletAddress);
@@ -97,13 +156,26 @@ function WalletDemo() {
     }
   };
 
-  // Connect handler - SDK 2.0.1 API
+  /**
+   * Connect with Passkey
+   *
+   * SDK v2.0.1 API:
+   * - connect() returns a Promise<WalletInfo>
+   * - Opens the LazorKit portal for WebAuthn authentication
+   * - On success, returns the wallet info with smartWallet address
+   *
+   * Example:
+   * ```ts
+   * const walletInfo = await connect();
+   * console.log(walletInfo.smartWallet); // User's Solana address
+   * ```
+   */
   const handleConnect = async () => {
     addLog('pending', 'Initiating passkey authentication...');
     addLog('info', 'Opening LazorKit portal for WebAuthn');
 
     try {
-      // connect() returns WalletInfo with smartWallet address
+      // connect() opens the portal and waits for WebAuthn
       const result = await connect();
       console.log('Connected:', result);
       addLog('success', 'Wallet connected successfully!');
@@ -117,7 +189,12 @@ function WalletDemo() {
     }
   };
 
-  // Disconnect handler
+  /**
+   * Disconnect Wallet
+   *
+   * Clears the wallet session from local storage.
+   * The user will need to authenticate again on next connect.
+   */
   const handleDisconnect = async () => {
     try {
       await disconnect();
@@ -130,7 +207,7 @@ function WalletDemo() {
     }
   };
 
-  // Get balance
+  // Fetch wallet balance when connected
   useEffect(() => {
     if (smartWalletPubkey) {
       const getBalance = async () => {
@@ -145,7 +222,20 @@ function WalletDemo() {
     }
   }, [smartWalletPubkey]);
 
-  // Sign message handler
+  /**
+   * Sign a Message
+   *
+   * SDK v2.0.1 API:
+   * - signMessage(message: string) returns Promise<{ signature: string, signedPayload: string }>
+   * - Opens the portal for passkey signing
+   * - Returns cryptographic signature of the message
+   *
+   * Example:
+   * ```ts
+   * const result = await signMessage('Hello from LazorKit!');
+   * console.log(result.signature); // Base64 encoded signature
+   * ```
+   */
   const handleSignMessage = async () => {
     if (!isConnected || !signMessage) {
       addLog('error', 'Please connect wallet first');
@@ -169,7 +259,31 @@ function WalletDemo() {
     }
   };
 
-  // Send transaction handler
+  /**
+   * Send a Gasless Transaction
+   *
+   * SDK v2.0.1 API:
+   * - signAndSendTransaction({ instructions, transactionOptions }) returns Promise<string>
+   * - instructions: Array of Solana TransactionInstruction objects
+   * - transactionOptions: Optional settings like computeUnitLimit
+   * - Returns the transaction signature
+   *
+   * The Paymaster automatically sponsors gas fees - users never pay SOL for gas!
+   *
+   * Example:
+   * ```ts
+   * const instruction = SystemProgram.transfer({
+   *   fromPubkey: smartWalletPubkey,
+   *   toPubkey: recipientPubkey,
+   *   lamports: 1000000,
+   * });
+   *
+   * const signature = await signAndSendTransaction({
+   *   instructions: [instruction],
+   *   transactionOptions: { computeUnitLimit: 200_000 }
+   * });
+   * ```
+   */
   const handleSendTransaction = async () => {
     if (!smartWalletPubkey || !signAndSendTransaction) {
       addLog('error', 'Please connect wallet first');
@@ -182,13 +296,15 @@ function WalletDemo() {
       addLog('info', 'Paymaster sponsoring gas fees');
       addLog('pending', 'Awaiting passkey signature...');
 
+      // Create a simple self-transfer for demo
+      // In production, replace with your actual business logic
       const instruction = SystemProgram.transfer({
         fromPubkey: smartWalletPubkey,
-        toPubkey: smartWalletPubkey,
+        toPubkey: smartWalletPubkey, // Self-transfer for demo
         lamports: 100,
       });
 
-      // SDK 2.0.1 API - signAndSendTransaction returns signature directly
+      // SDK v2.0.1: Pass instructions array and optional transactionOptions
       const txSignature = await signAndSendTransaction({
         instructions: [instruction],
         transactionOptions: {
@@ -201,7 +317,7 @@ function WalletDemo() {
       addLog('success', 'Transaction confirmed on Solana!');
       addLog('info', `Signature: ${txSignature.slice(0, 16)}...`, txSignature);
 
-      // Refresh balance
+      // Refresh balance after transaction
       const newBalance = await connection.getBalance(smartWalletPubkey);
       setBalance(newBalance);
     } catch (err) {
@@ -211,6 +327,10 @@ function WalletDemo() {
       setIsSending(false);
     }
   };
+
+  // =====================================================
+  // UI RENDERING
+  // =====================================================
 
   return (
     <div className="min-h-screen bg-[#030014] text-white overflow-hidden">
@@ -356,7 +476,7 @@ function WalletDemo() {
           </div>
         </section>
 
-        {/* Interactive Playground */}
+        {/* Interactive Playground - Only shown when connected */}
         {isConnected && (
           <section className="py-16 px-6">
             <div className="max-w-6xl mx-auto">
@@ -386,7 +506,7 @@ function WalletDemo() {
                     </div>
                   </div>
 
-                  {/* Sign Message */}
+                  {/* Sign Message Action */}
                   <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
@@ -407,7 +527,7 @@ function WalletDemo() {
                     </button>
                   </div>
 
-                  {/* Send Transaction */}
+                  {/* Send Transaction Action */}
                   <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
@@ -439,7 +559,7 @@ function WalletDemo() {
                   </div>
                 </div>
 
-                {/* Activity Log */}
+                {/* Activity Log Panel */}
                 <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
                   <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5">
                     <div className="flex items-center gap-2">
@@ -492,7 +612,7 @@ function WalletDemo() {
           </section>
         )}
 
-        {/* Use Cases */}
+        {/* Use Cases Section */}
         <section className="py-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
@@ -551,13 +671,26 @@ function WalletDemo() {
   );
 }
 
+/**
+ * Home Page Component
+ *
+ * Entry point that sets up the LazorKit provider.
+ * The provider must wrap any component that uses useWallet().
+ *
+ * SDK v2.0.1 Provider Props:
+ * - rpcUrl: Solana RPC endpoint
+ * - portalUrl: LazorKit authentication portal
+ * - paymasterConfig: { paymasterUrl: string } for gasless transactions
+ */
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
+  // Prevent hydration mismatch with WebAuthn APIs
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Loading state during SSR
   if (!mounted) {
     return (
       <div className="min-h-screen bg-[#030014] flex items-center justify-center">
@@ -569,7 +702,7 @@ export default function Home() {
     );
   }
 
-  // SDK 2.0.1 Provider configuration
+  // SDK 2.0.1 Provider Configuration
   return (
     <LazorkitProvider
       rpcUrl={CONFIG.RPC_URL}
