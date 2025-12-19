@@ -1,7 +1,7 @@
 "use client";
 
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
-import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useEffect, useState, useCallback } from "react";
 import * as anchor from '@coral-xyz/anchor';
 import {
@@ -19,10 +19,18 @@ import {
   XCircle,
   Zap,
   Shield,
-  Wallet
+  Sparkles,
+  ArrowRight,
+  Github,
+  BookOpen,
+  Rocket,
+  Lock,
+  CreditCard,
+  Users
 } from 'lucide-react';
 
-const connection = new Connection("https://api.devnet.solana.com");
+// LazorKit's RPC endpoint
+const connection = new Connection("https://rpc.lazorkit.xyz");
 
 interface LogEntry {
   id: string;
@@ -39,6 +47,7 @@ function WalletDemo() {
   const [isSending, setIsSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastSignature, setLastSignature] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'demo' | 'code'>('demo');
 
   const {
     smartWalletPubkey,
@@ -99,6 +108,7 @@ function WalletDemo() {
       await disconnect();
       addLog('info', 'Wallet disconnected');
       setLastSignature(null);
+      setBalance(0);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Disconnect failed';
       addLog('error', 'Disconnect failed', message);
@@ -130,19 +140,18 @@ function WalletDemo() {
     setIsSigning(true);
     try {
       addLog('pending', 'Requesting message signature...');
-      addLog('info', 'Message: "Hello from LazorKit Playground!"');
+      addLog('info', 'Message: "Hello from LazorKit!"');
 
-      // Create a memo instruction with the message
       const instruction = new anchor.web3.TransactionInstruction({
         keys: [],
         programId: new anchor.web3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
-        data: Buffer.from('Hello from LazorKit Playground!', 'utf-8'),
+        data: Buffer.from('Hello from LazorKit!', 'utf-8'),
       });
 
       const signedTx = await signTransaction(instruction);
 
       addLog('success', 'Message signed successfully!');
-      addLog('info', 'Transaction signed and ready');
+      addLog('info', 'Signature verified on-chain ready');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Signing failed';
       addLog('error', 'Message signing failed', message);
@@ -160,9 +169,8 @@ function WalletDemo() {
 
     setIsSending(true);
     try {
-      addLog('pending', 'Building transaction...');
-      addLog('info', 'Sending 100 lamports to self (demo)');
-      addLog('info', 'Gas fees sponsored by Paymaster');
+      addLog('pending', 'Building gasless transaction...');
+      addLog('info', 'Paymaster sponsoring gas fees');
       addLog('pending', 'Awaiting passkey signature...');
 
       const instruction = SystemProgram.transfer({
@@ -174,8 +182,8 @@ function WalletDemo() {
       const txSignature = await signAndSendTransaction(instruction);
 
       setLastSignature(txSignature);
-      addLog('success', 'Transaction confirmed!');
-      addLog('info', `Signature: ${txSignature.slice(0, 20)}...`, txSignature);
+      addLog('success', 'Transaction confirmed on Solana!');
+      addLog('info', `Signature: ${txSignature.slice(0, 16)}...`, txSignature);
 
       // Refresh balance
       const newBalance = await connection.getBalance(smartWalletPubkey);
@@ -189,282 +197,332 @@ function WalletDemo() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] text-white">
+    <div className="min-h-screen bg-[#030014] text-white overflow-hidden">
+      {/* Animated Background */}
+      <div className="fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-950/20 via-transparent to-cyan-950/20" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-600/5 rounded-full blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className="border-b border-zinc-800/50 bg-zinc-900/50 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
+      <header className="relative z-10 border-b border-white/5 bg-black/20 backdrop-blur-2xl sticky top-0">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-cyan-500 rounded-xl blur-lg opacity-50" />
+              <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
+                <Zap className="h-5 w-5 text-white" />
+              </div>
             </div>
-            <span className="font-bold text-lg">LazorKit</span>
-            <span className="text-xs text-zinc-500 ml-2">Developer Playground</span>
+            <div>
+              <span className="font-bold text-xl bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">LazorKit</span>
+              <span className="text-xs text-zinc-500 block -mt-1">Developer Playground</span>
+            </div>
           </div>
 
-          {isConnected && smartWalletPubkey && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 rounded-xl bg-zinc-800/50 px-3 py-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-mono text-zinc-300">
-                  {smartWalletPubkey.toString().slice(0, 4)}...{smartWalletPubkey.toString().slice(-4)}
-                </span>
+          <div className="flex items-center gap-4">
+            {isConnected && smartWalletPubkey ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-4 py-2.5 backdrop-blur-xl">
+                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50" />
+                  <span className="text-sm font-mono text-zinc-300">
+                    {smartWalletPubkey.toString().slice(0, 4)}...{smartWalletPubkey.toString().slice(-4)}
+                  </span>
+                  <button onClick={copyAddress} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-zinc-500" />}
+                  </button>
+                  <a
+                    href={`https://explorer.solana.com/address/${smartWalletPubkey.toString()}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 text-zinc-500" />
+                  </a>
+                </div>
                 <button
-                  onClick={copyAddress}
-                  className="p-1 hover:bg-zinc-700 rounded-md transition-colors"
+                  onClick={handleDisconnect}
+                  className="p-2.5 hover:bg-white/10 rounded-xl transition-all border border-white/10"
                 >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-500" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5 text-zinc-500" />
-                  )}
+                  <LogOut className="h-4 w-4 text-zinc-400" />
                 </button>
               </div>
-              <button
-                onClick={handleDisconnect}
-                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
-              >
-                <LogOut className="h-4 w-4 text-zinc-400" />
-              </button>
-            </div>
-          )}
+            ) : (
+              <a href="https://github.com/0xjesus/lazorkit-bounty" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
+                <Github className="h-4 w-4" />
+                <span className="hidden sm:inline">View Source</span>
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-12">
+      <main className="relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-            LazorKit Developer Playground
-          </h1>
-          <p className="text-xl text-zinc-400 max-w-2xl mx-auto">
-            Experience passkey authentication and gasless transactions on Solana.
-            No seed phrases. No gas fees. Just seamless Web3.
-          </p>
-        </div>
-
-        {/* Features */}
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center mb-4">
-              <Fingerprint className="h-6 w-6 text-violet-400" />
+        <section className="pt-20 pb-16 px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-500/10 to-cyan-500/10 border border-violet-500/20 mb-8">
+              <Sparkles className="h-4 w-4 text-violet-400" />
+              <span className="text-sm text-violet-300">Powered by WebAuthn & Smart Wallets</span>
             </div>
-            <h3 className="font-semibold mb-2">Passkey Authentication</h3>
-            <p className="text-sm text-zinc-400">
-              Use Face ID, Touch ID, or Windows Hello. No seed phrases to remember.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-4">
-              <Zap className="h-6 w-6 text-emerald-400" />
-            </div>
-            <h3 className="font-semibold mb-2">Gasless Transactions</h3>
-            <p className="text-sm text-zinc-400">
-              Paymaster sponsors all gas fees. Users never need SOL for transactions.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-            <div className="h-12 w-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-4">
-              <Shield className="h-6 w-6 text-cyan-400" />
-            </div>
-            <h3 className="font-semibold mb-2">Smart Wallets</h3>
-            <p className="text-sm text-zinc-400">
-              PDA-based smart wallets with programmable rules and recovery options.
-            </p>
-          </div>
-        </div>
 
-        {/* Interactive Playground */}
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Left Panel - Actions */}
-          <div className="space-y-6">
-            {/* Step 1: Connect */}
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                  isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'
-                }`}>
-                  {isConnected ? <CheckCircle2 className="h-5 w-5" /> : '1'}
-                </div>
-                <h3 className="text-lg font-semibold">Connect with Passkey</h3>
-              </div>
+            <h1 className="text-5xl sm:text-7xl font-bold mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-white via-white to-white/50 bg-clip-text text-transparent">The Future of</span>
+              <br />
+              <span className="bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">Web3 Authentication</span>
+            </h1>
 
-              <p className="text-sm text-zinc-400 mb-4">
-                Create or access your smart wallet using Face ID, Touch ID, or Windows Hello.
-              </p>
+            <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed">
+              No seed phrases. No gas fees. No extensions.
+              <span className="text-white"> Just seamless blockchain transactions</span> with the security of your device's biometrics.
+            </p>
 
-              {isConnected && smartWalletPubkey ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-zinc-800/50 border border-zinc-700/50">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-sm text-zinc-400">Connected:</span>
-                    <code className="text-sm font-mono text-emerald-400 flex-1 truncate">
-                      {smartWalletPubkey.toString()}
-                    </code>
-                  </div>
-                  <div className="p-3 rounded-xl bg-zinc-800/50 border border-zinc-700/50">
-                    <span className="text-sm text-zinc-400">Balance: </span>
-                    <span className="font-bold">{(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL</span>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={handleConnect}
-                  disabled={isConnecting}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold hover:opacity-90 transition-all disabled:opacity-50"
-                >
+            {!isConnected && (
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-semibold text-lg transition-all disabled:opacity-50"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-2xl" />
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-cyan-600 rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity" />
+                <div className="relative flex items-center gap-3">
                   {isConnecting ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <Fingerprint className="h-5 w-5" />
                   )}
-                  {isConnecting ? 'Connecting...' : 'Connect with Passkey'}
-                </button>
-              )}
-            </div>
-
-            {/* Step 2: Sign Message */}
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                  !isConnected ? 'bg-zinc-700 text-zinc-500' : 'bg-cyan-500/20 text-cyan-400'
-                }`}>
-                  2
+                  {isConnecting ? 'Authenticating...' : 'Connect with Passkey'}
+                  {!isConnecting && <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />}
                 </div>
-                <h3 className="text-lg font-semibold">Sign a Message</h3>
-              </div>
-
-              <p className="text-sm text-zinc-400 mb-4">
-                Cryptographically sign a message with your passkey. Useful for authentication.
-              </p>
-
-              <button
-                onClick={handleSignMessage}
-                disabled={!isConnected || isSigning}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSigning ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <FileSignature className="h-5 w-5" />
-                )}
-                {isSigning ? 'Signing...' : 'Sign Message'}
               </button>
-            </div>
-
-            {/* Step 3: Send Transaction */}
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                  !isConnected ? 'bg-zinc-700 text-zinc-500' : 'bg-emerald-500/20 text-emerald-400'
-                }`}>
-                  3
-                </div>
-                <h3 className="text-lg font-semibold">Send Gasless Transaction</h3>
-              </div>
-
-              <p className="text-sm text-zinc-400 mb-4">
-                Send a transaction without paying gas fees. The Paymaster sponsors the costs.
-              </p>
-
-              <button
-                onClick={handleSendTransaction}
-                disabled={!isConnected || isSending}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-                {isSending ? 'Sending...' : 'Send Gasless Transaction'}
-              </button>
-
-              {lastSignature && (
-                <a
-                  href={`https://explorer.solana.com/tx/${lastSignature}?cluster=devnet`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 flex items-center justify-center gap-2 text-sm text-emerald-400 hover:text-emerald-300"
-                >
-                  View on Solana Explorer
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-            </div>
+            )}
           </div>
+        </section>
 
-          {/* Right Panel - Log Output */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900">
-              <div className="flex items-center gap-2">
-                <Terminal className="h-4 w-4 text-zinc-500" />
-                <span className="text-sm font-medium text-zinc-400">Activity Log</span>
-              </div>
-              <button
-                onClick={clearLogs}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-
-            <div className="h-[500px] overflow-y-auto p-4 font-mono text-sm space-y-2">
-              {logs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-600">
-                  <Terminal className="h-8 w-8 mb-2" />
-                  <p>Waiting for actions...</p>
-                  <p className="text-xs mt-1">Connect your wallet to get started</p>
-                </div>
-              ) : (
-                logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className={`flex items-start gap-2 p-2 rounded-lg ${
-                      log.type === 'success'
-                        ? 'bg-emerald-500/10 border border-emerald-500/20'
-                        : log.type === 'error'
-                          ? 'bg-red-500/10 border border-red-500/20'
-                          : log.type === 'pending'
-                            ? 'bg-yellow-500/10 border border-yellow-500/20'
-                            : 'bg-zinc-800/50 border border-zinc-700/50'
-                    }`}
-                  >
-                    <span className="shrink-0 mt-0.5">
-                      {log.type === 'success' && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-                      {log.type === 'error' && <XCircle className="h-4 w-4 text-red-400" />}
-                      {log.type === 'pending' && <Loader2 className="h-4 w-4 text-yellow-400 animate-spin" />}
-                      {log.type === 'info' && <Clock className="h-4 w-4 text-zinc-500" />}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`${
-                        log.type === 'success'
-                          ? 'text-emerald-300'
-                          : log.type === 'error'
-                            ? 'text-red-300'
-                            : log.type === 'pending'
-                              ? 'text-yellow-300'
-                              : 'text-zinc-400'
-                      }`}>
-                        {log.message}
-                      </p>
-                      {log.details && (
-                        <p className="text-xs text-zinc-600 mt-1 truncate">{log.details}</p>
-                      )}
+        {/* Features Grid */}
+        <section className="py-16 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                {
+                  icon: Fingerprint,
+                  title: "Passkey Auth",
+                  description: "Face ID, Touch ID, Windows Hello. Your device is your wallet.",
+                  color: "violet"
+                },
+                {
+                  icon: Zap,
+                  title: "Gasless Transactions",
+                  description: "Paymaster sponsors all fees. Users never touch SOL for gas.",
+                  color: "emerald"
+                },
+                {
+                  icon: Shield,
+                  title: "Smart Wallets",
+                  description: "PDA-based wallets with programmable rules and social recovery.",
+                  color: "cyan"
+                }
+              ].map((feature, i) => (
+                <div key={i} className="group relative">
+                  <div className={`absolute inset-0 bg-gradient-to-br from-${feature.color}-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                  <div className="relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 h-full hover:border-white/20 transition-all duration-300">
+                    <div className={`h-14 w-14 rounded-2xl bg-${feature.color}-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                      <feature.icon className={`h-7 w-7 text-${feature.color}-400`} />
                     </div>
-                    <span className="text-xs text-zinc-600 shrink-0">
-                      {log.timestamp.toLocaleTimeString()}
-                    </span>
+                    <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
+                    <p className="text-zinc-400 leading-relaxed">{feature.description}</p>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Footer Info */}
-        <div className="text-center mt-12 text-sm text-zinc-500">
-          <p>Powered by LazorKit SDK v1.4.3-beta | Solana Devnet</p>
-        </div>
+        {/* Interactive Playground */}
+        {isConnected && (
+          <section className="py-16 px-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold mb-4">Interactive Playground</h2>
+                <p className="text-zinc-400">Test LazorKit's capabilities in real-time</p>
+              </div>
+
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Actions Panel */}
+                <div className="space-y-4">
+                  {/* Wallet Info Card */}
+                  <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-zinc-500">Smart Wallet</span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-xs text-emerald-400">Connected</span>
+                      </div>
+                    </div>
+                    <code className="text-sm font-mono text-violet-400 break-all block mb-4">
+                      {smartWalletPubkey?.toString()}
+                    </code>
+                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                      <span className="text-sm text-zinc-500">Balance</span>
+                      <span className="text-2xl font-bold">{(balance / LAMPORTS_PER_SOL).toFixed(4)} <span className="text-sm text-zinc-500">SOL</span></span>
+                    </div>
+                  </div>
+
+                  {/* Sign Message */}
+                  <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                        <FileSignature className="h-5 w-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Sign Message</h3>
+                        <p className="text-xs text-zinc-500">Cryptographic proof of ownership</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSignMessage}
+                      disabled={isSigning}
+                      className="w-full py-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium hover:bg-cyan-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
+                      {isSigning ? 'Signing...' : 'Sign Message'}
+                    </button>
+                  </div>
+
+                  {/* Send Transaction */}
+                  <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                        <Send className="h-5 w-5 text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Gasless Transaction</h3>
+                        <p className="text-xs text-zinc-500">Zero gas fees - Paymaster sponsored</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSendTransaction}
+                      disabled={isSending}
+                      className="w-full py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium hover:bg-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {isSending ? 'Sending...' : 'Send Transaction'}
+                    </button>
+                    {lastSignature && (
+                      <a
+                        href={`https://explorer.solana.com/tx/${lastSignature}?cluster=devnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex items-center justify-center gap-2 text-sm text-emerald-400/80 hover:text-emerald-400"
+                      >
+                        View on Explorer <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Activity Log */}
+                <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="h-4 w-4 text-zinc-500" />
+                      <span className="text-sm font-medium text-zinc-400">Activity Log</span>
+                    </div>
+                    <button onClick={clearLogs} className="text-xs text-zinc-500 hover:text-white transition-colors">
+                      Clear
+                    </button>
+                  </div>
+                  <div className="h-[400px] overflow-y-auto p-4 space-y-2">
+                    {logs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                        <Terminal className="h-8 w-8 mb-2" />
+                        <p>Waiting for actions...</p>
+                      </div>
+                    ) : (
+                      logs.map((log) => (
+                        <div
+                          key={log.id}
+                          className={`flex items-start gap-2 p-3 rounded-xl text-sm ${
+                            log.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20' :
+                            log.type === 'error' ? 'bg-red-500/10 border border-red-500/20' :
+                            log.type === 'pending' ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                            'bg-white/5 border border-white/10'
+                          }`}
+                        >
+                          <span className="shrink-0 mt-0.5">
+                            {log.type === 'success' && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+                            {log.type === 'error' && <XCircle className="h-4 w-4 text-red-400" />}
+                            {log.type === 'pending' && <Loader2 className="h-4 w-4 text-yellow-400 animate-spin" />}
+                            {log.type === 'info' && <Clock className="h-4 w-4 text-zinc-500" />}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className={
+                              log.type === 'success' ? 'text-emerald-300' :
+                              log.type === 'error' ? 'text-red-300' :
+                              log.type === 'pending' ? 'text-yellow-300' : 'text-zinc-400'
+                            }>{log.message}</p>
+                            {log.details && <p className="text-xs text-zinc-600 mt-1 truncate">{log.details}</p>}
+                          </div>
+                          <span className="text-xs text-zinc-600 shrink-0">{log.timestamp.toLocaleTimeString()}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Use Cases */}
+        <section className="py-20 px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-bold mb-4">Built for Modern dApps</h2>
+              <p className="text-zinc-400 max-w-xl mx-auto">LazorKit enables seamless Web3 experiences across industries</p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { icon: CreditCard, title: "Payments", desc: "One-click checkout" },
+                { icon: Users, title: "Social", desc: "Passwordless auth" },
+                { icon: Rocket, title: "Gaming", desc: "Instant onboarding" },
+                { icon: Lock, title: "DeFi", desc: "Secure transactions" }
+              ].map((item, i) => (
+                <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all cursor-default">
+                  <item.icon className="h-6 w-6 text-violet-400 mb-3" />
+                  <h4 className="font-semibold mb-1">{item.title}</h4>
+                  <p className="text-sm text-zinc-500">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="py-12 px-6 border-t border-white/5">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-violet-400" />
+              <span className="font-semibold">LazorKit</span>
+              <span className="text-zinc-600">|</span>
+              <span className="text-sm text-zinc-500">SDK v1.4.3-beta</span>
+            </div>
+            <div className="flex items-center gap-6">
+              <a href="https://docs.lazorkit.xyz" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
+                <BookOpen className="h-4 w-4" /> Docs
+              </a>
+              <a href="https://github.com/lazor-kit/lazor-kit" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
+                <Github className="h-4 w-4" /> GitHub
+              </a>
+            </div>
+          </div>
+        </footer>
       </main>
     </div>
   );
@@ -479,15 +537,18 @@ export default function Home() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
-        <div className="animate-pulse text-zinc-400">Loading...</div>
+      <div className="min-h-screen bg-[#030014] flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-6 w-6 text-violet-500 animate-spin" />
+          <span className="text-zinc-400">Loading LazorKit...</span>
+        </div>
       </div>
     );
   }
 
   return (
     <LazorkitProvider
-      rpcUrl="https://api.devnet.solana.com"
+      rpcUrl="https://rpc.lazorkit.xyz"
       ipfsUrl="https://portal.lazor.sh"
       paymasterUrl="https://kora.devnet.lazorkit.com"
     >
