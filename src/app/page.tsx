@@ -3,7 +3,6 @@
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useEffect, useState, useCallback } from "react";
-import * as anchor from '@coral-xyz/anchor';
 import {
   Fingerprint,
   Send,
@@ -29,8 +28,14 @@ import {
   Users
 } from 'lucide-react';
 
-// LazorKit's RPC endpoint
-const connection = new Connection("https://rpc.lazorkit.xyz");
+// Configuration
+const CONFIG = {
+  RPC_URL: "https://api.devnet.solana.com",
+  PORTAL_URL: "https://portal.lazor.sh",
+  PAYMASTER_URL: "https://kora.devnet.lazorkit.com",
+};
+
+const connection = new Connection(CONFIG.RPC_URL);
 
 interface LogEntry {
   id: string;
@@ -47,19 +52,23 @@ function WalletDemo() {
   const [isSending, setIsSending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastSignature, setLastSignature] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'demo' | 'code'>('demo');
 
+  // SDK 2.0.1 API
   const {
-    smartWalletPubkey,
-    isConnected,
+    wallet,
     isConnecting,
-    isSigning: walletSigning,
+    isSigning: sdkSigning,
     error: walletError,
     connect,
     disconnect,
-    signTransaction,
-    signAndSendTransaction
+    signAndSendTransaction,
+    signMessage
   } = useWallet();
+
+  // Derived state
+  const isConnected = !!wallet?.smartWallet;
+  const smartWalletAddress = wallet?.smartWallet || null;
+  const smartWalletPubkey = smartWalletAddress ? new PublicKey(smartWalletAddress) : null;
 
   // Add log entry
   const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
@@ -81,22 +90,28 @@ function WalletDemo() {
 
   // Copy address
   const copyAddress = async () => {
-    if (smartWalletPubkey) {
-      await navigator.clipboard.writeText(smartWalletPubkey.toString());
+    if (smartWalletAddress) {
+      await navigator.clipboard.writeText(smartWalletAddress);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  // Connect handler
+  // Connect handler - SDK 2.0.1 API
   const handleConnect = async () => {
     addLog('pending', 'Initiating passkey authentication...');
     addLog('info', 'Opening LazorKit portal for WebAuthn');
 
     try {
-      await connect();
+      // connect() returns WalletInfo with smartWallet address
+      const result = await connect();
+      console.log('Connected:', result);
       addLog('success', 'Wallet connected successfully!');
+      if (result?.smartWallet) {
+        addLog('info', `Smart Wallet: ${result.smartWallet.slice(0, 8)}...`);
+      }
     } catch (err) {
+      console.error('Connect failed:', err);
       const message = err instanceof Error ? err.message : 'Connection failed';
       addLog('error', 'Connection failed', message);
     }
@@ -132,7 +147,7 @@ function WalletDemo() {
 
   // Sign message handler
   const handleSignMessage = async () => {
-    if (!smartWalletPubkey || !signTransaction) {
+    if (!isConnected || !signMessage) {
       addLog('error', 'Please connect wallet first');
       return;
     }
@@ -142,16 +157,10 @@ function WalletDemo() {
       addLog('pending', 'Requesting message signature...');
       addLog('info', 'Message: "Hello from LazorKit!"');
 
-      const instruction = new anchor.web3.TransactionInstruction({
-        keys: [],
-        programId: new anchor.web3.PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
-        data: Buffer.from('Hello from LazorKit!', 'utf-8'),
-      });
-
-      const signedTx = await signTransaction(instruction);
+      const result = await signMessage('Hello from LazorKit!');
 
       addLog('success', 'Message signed successfully!');
-      addLog('info', 'Signature verified on-chain ready');
+      addLog('info', `Signature: ${result.signature.slice(0, 20)}...`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Signing failed';
       addLog('error', 'Message signing failed', message);
@@ -179,7 +188,14 @@ function WalletDemo() {
         lamports: 100,
       });
 
-      const txSignature = await signAndSendTransaction(instruction);
+      // SDK 2.0.1 API - signAndSendTransaction returns signature directly
+      const txSignature = await signAndSendTransaction({
+        instructions: [instruction],
+        transactionOptions: {
+          computeUnitLimit: 200_000,
+        },
+      });
+      console.log('Transaction successful:', txSignature);
 
       setLastSignature(txSignature);
       addLog('success', 'Transaction confirmed on Solana!');
@@ -202,7 +218,7 @@ function WalletDemo() {
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-violet-950/20 via-transparent to-cyan-950/20" />
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-600/5 rounded-full blur-3xl" />
       </div>
 
@@ -223,18 +239,18 @@ function WalletDemo() {
           </div>
 
           <div className="flex items-center gap-4">
-            {isConnected && smartWalletPubkey ? (
+            {isConnected && smartWalletAddress ? (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-4 py-2.5 backdrop-blur-xl">
                   <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50" />
                   <span className="text-sm font-mono text-zinc-300">
-                    {smartWalletPubkey.toString().slice(0, 4)}...{smartWalletPubkey.toString().slice(-4)}
+                    {smartWalletAddress.slice(0, 4)}...{smartWalletAddress.slice(-4)}
                   </span>
                   <button onClick={copyAddress} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
                     {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-zinc-500" />}
                   </button>
                   <a
-                    href={`https://explorer.solana.com/address/${smartWalletPubkey.toString()}?cluster=devnet`}
+                    href={`https://explorer.solana.com/address/${smartWalletAddress}?cluster=devnet`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
@@ -277,7 +293,7 @@ function WalletDemo() {
 
             <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12 leading-relaxed">
               No seed phrases. No gas fees. No extensions.
-              <span className="text-white"> Just seamless blockchain transactions</span> with the security of your device's biometrics.
+              <span className="text-white"> Just seamless blockchain transactions</span> with the security of your device&apos;s biometrics.
             </p>
 
             {!isConnected && (
@@ -306,37 +322,36 @@ function WalletDemo() {
         <section className="py-16 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="grid md:grid-cols-3 gap-6">
-              {[
-                {
-                  icon: Fingerprint,
-                  title: "Passkey Auth",
-                  description: "Face ID, Touch ID, Windows Hello. Your device is your wallet.",
-                  color: "violet"
-                },
-                {
-                  icon: Zap,
-                  title: "Gasless Transactions",
-                  description: "Paymaster sponsors all fees. Users never touch SOL for gas.",
-                  color: "emerald"
-                },
-                {
-                  icon: Shield,
-                  title: "Smart Wallets",
-                  description: "PDA-based wallets with programmable rules and social recovery.",
-                  color: "cyan"
-                }
-              ].map((feature, i) => (
-                <div key={i} className="group relative">
-                  <div className={`absolute inset-0 bg-gradient-to-br from-${feature.color}-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                  <div className="relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 h-full hover:border-white/20 transition-all duration-300">
-                    <div className={`h-14 w-14 rounded-2xl bg-${feature.color}-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                      <feature.icon className={`h-7 w-7 text-${feature.color}-400`} />
-                    </div>
-                    <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                    <p className="text-zinc-400 leading-relaxed">{feature.description}</p>
+              <div className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 h-full hover:border-white/20 transition-all duration-300">
+                  <div className="h-14 w-14 rounded-2xl bg-violet-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Fingerprint className="h-7 w-7 text-violet-400" />
                   </div>
+                  <h3 className="text-xl font-semibold mb-3">Passkey Auth</h3>
+                  <p className="text-zinc-400 leading-relaxed">Face ID, Touch ID, Windows Hello. Your device is your wallet.</p>
                 </div>
-              ))}
+              </div>
+              <div className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 h-full hover:border-white/20 transition-all duration-300">
+                  <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Zap className="h-7 w-7 text-emerald-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Gasless Transactions</h3>
+                  <p className="text-zinc-400 leading-relaxed">Paymaster sponsors all fees. Users never touch SOL for gas.</p>
+                </div>
+              </div>
+              <div className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 h-full hover:border-white/20 transition-all duration-300">
+                  <div className="h-14 w-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Shield className="h-7 w-7 text-cyan-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">Smart Wallets</h3>
+                  <p className="text-zinc-400 leading-relaxed">PDA-based wallets with programmable rules and social recovery.</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -347,7 +362,7 @@ function WalletDemo() {
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
                 <h2 className="text-3xl font-bold mb-4">Interactive Playground</h2>
-                <p className="text-zinc-400">Test LazorKit's capabilities in real-time</p>
+                <p className="text-zinc-400">Test LazorKit&apos;s capabilities in real-time</p>
               </div>
 
               <div className="grid lg:grid-cols-2 gap-8">
@@ -363,7 +378,7 @@ function WalletDemo() {
                       </div>
                     </div>
                     <code className="text-sm font-mono text-violet-400 break-all block mb-4">
-                      {smartWalletPubkey?.toString()}
+                      {smartWalletAddress}
                     </code>
                     <div className="flex items-center justify-between pt-4 border-t border-white/10">
                       <span className="text-sm text-zinc-500">Balance</span>
@@ -384,11 +399,11 @@ function WalletDemo() {
                     </div>
                     <button
                       onClick={handleSignMessage}
-                      disabled={isSigning}
+                      disabled={isSigning || sdkSigning}
                       className="w-full py-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium hover:bg-cyan-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {isSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
-                      {isSigning ? 'Signing...' : 'Sign Message'}
+                      {isSigning || sdkSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSignature className="h-4 w-4" />}
+                      {isSigning || sdkSigning ? 'Signing...' : 'Sign Message'}
                     </button>
                   </div>
 
@@ -405,11 +420,11 @@ function WalletDemo() {
                     </div>
                     <button
                       onClick={handleSendTransaction}
-                      disabled={isSending}
+                      disabled={isSending || sdkSigning}
                       className="w-full py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium hover:bg-emerald-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      {isSending ? 'Sending...' : 'Send Transaction'}
+                      {isSending || sdkSigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {isSending || sdkSigning ? 'Sending...' : 'Send Transaction'}
                     </button>
                     {lastSignature && (
                       <a
@@ -486,18 +501,26 @@ function WalletDemo() {
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { icon: CreditCard, title: "Payments", desc: "One-click checkout" },
-                { icon: Users, title: "Social", desc: "Passwordless auth" },
-                { icon: Rocket, title: "Gaming", desc: "Instant onboarding" },
-                { icon: Lock, title: "DeFi", desc: "Secure transactions" }
-              ].map((item, i) => (
-                <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all cursor-default">
-                  <item.icon className="h-6 w-6 text-violet-400 mb-3" />
-                  <h4 className="font-semibold mb-1">{item.title}</h4>
-                  <p className="text-sm text-zinc-500">{item.desc}</p>
-                </div>
-              ))}
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all cursor-default">
+                <CreditCard className="h-6 w-6 text-violet-400 mb-3" />
+                <h4 className="font-semibold mb-1">Payments</h4>
+                <p className="text-sm text-zinc-500">One-click checkout</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all cursor-default">
+                <Users className="h-6 w-6 text-violet-400 mb-3" />
+                <h4 className="font-semibold mb-1">Social</h4>
+                <p className="text-sm text-zinc-500">Passwordless auth</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all cursor-default">
+                <Rocket className="h-6 w-6 text-violet-400 mb-3" />
+                <h4 className="font-semibold mb-1">Gaming</h4>
+                <p className="text-sm text-zinc-500">Instant onboarding</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition-all cursor-default">
+                <Lock className="h-6 w-6 text-violet-400 mb-3" />
+                <h4 className="font-semibold mb-1">DeFi</h4>
+                <p className="text-sm text-zinc-500">Secure transactions</p>
+              </div>
             </div>
           </div>
         </section>
@@ -509,10 +532,10 @@ function WalletDemo() {
               <Zap className="h-5 w-5 text-violet-400" />
               <span className="font-semibold">LazorKit</span>
               <span className="text-zinc-600">|</span>
-              <span className="text-sm text-zinc-500">SDK v1.4.3-beta</span>
+              <span className="text-sm text-zinc-500">SDK v2.0.1</span>
             </div>
             <div className="flex items-center gap-6">
-              <a href="https://docs.lazorkit.xyz" target="_blank" rel="noopener noreferrer"
+              <a href="https://docs.lazorkit.com" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors">
                 <BookOpen className="h-4 w-4" /> Docs
               </a>
@@ -546,11 +569,14 @@ export default function Home() {
     );
   }
 
+  // SDK 2.0.1 Provider configuration
   return (
     <LazorkitProvider
-      rpcUrl="https://rpc.lazorkit.xyz"
-      ipfsUrl="https://portal.lazor.sh"
-      paymasterUrl="https://kora.devnet.lazorkit.com"
+      rpcUrl={CONFIG.RPC_URL}
+      portalUrl={CONFIG.PORTAL_URL}
+      paymasterConfig={{
+        paymasterUrl: CONFIG.PAYMASTER_URL,
+      }}
     >
       <WalletDemo />
     </LazorkitProvider>

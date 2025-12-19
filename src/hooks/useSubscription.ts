@@ -94,8 +94,10 @@ export function useSubscription(): UseSubscriptionReturn {
           lamports: lamportsToSend > 0 ? lamportsToSend : 1000,
         });
 
-        // Sign and send with passkey (SDK 1.4.3-beta API - takes single instruction)
-        const signature = await signAndSendTransaction(transferInstruction);
+        // Sign and send with passkey (SDK 2.0.1 API)
+        const signature = await signAndSendTransaction({
+          instructions: [transferInstruction],
+        });
 
         // Record the transaction
         const txRecord: TransactionRecord = {

@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { LazorkitProvider, useWallet } from '@lazorkit/wallet';
 import { Buffer } from 'buffer';
+import { PublicKey } from '@solana/web3.js';
 
 // Polyfill Buffer for browser environment
 if (typeof window !== 'undefined') {
@@ -13,10 +14,10 @@ interface LazorKitWrapperProps {
   children: ReactNode;
 }
 
-// Configuration from environment variables
+// Configuration from environment variables - SDK 2.0.1 compatible
 const CONFIG = {
-  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.lazorkit.xyz/',
-  ipfsUrl: process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.lazor.sh',
+  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
+  portalUrl: process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.lazor.sh',
   paymasterUrl: process.env.NEXT_PUBLIC_PAYMASTER_URL || 'https://kora.devnet.lazorkit.com',
 };
 
@@ -24,9 +25,9 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    console.log('=== LAZORKIT PROVIDER INIT (v1.4.3-beta) ===');
+    console.log('=== LAZORKIT PROVIDER INIT (v2.0.1) ===');
     console.log('RPC:', CONFIG.rpcUrl);
-    console.log('IPFS/Portal:', CONFIG.ipfsUrl);
+    console.log('Portal:', CONFIG.portalUrl);
     console.log('Paymaster:', CONFIG.paymasterUrl);
     setMounted(true);
   }, []);
@@ -41,11 +42,14 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
     );
   }
 
+  // SDK 2.0.1 Provider configuration
   return (
     <LazorkitProvider
       rpcUrl={CONFIG.rpcUrl}
-      ipfsUrl={CONFIG.ipfsUrl}
-      paymasterUrl={CONFIG.paymasterUrl}
+      portalUrl={CONFIG.portalUrl}
+      paymasterConfig={{
+        paymasterUrl: CONFIG.paymasterUrl,
+      }}
     >
       {children}
     </LazorkitProvider>
@@ -55,16 +59,20 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
 // Re-export useWallet for components to use
 export { useWallet };
 
-// Custom hook that wraps useWallet with additional logging
+// Custom hook that wraps useWallet with SDK 2.0.1 compatible interface
 export function useLazorKit() {
-  const wallet = useWallet();
+  const walletHook = useWallet();
+
+  // Derive smartWalletPubkey from wallet.smartWallet string
+  const smartWalletAddress = walletHook.wallet?.smartWallet || null;
+  const smartWalletPubkey = smartWalletAddress ? new PublicKey(smartWalletAddress) : null;
 
   return {
     connect: async () => {
       console.log('=== CONNECT CALLED ===');
       console.log('Calling wallet.connect()...');
       try {
-        const result = await wallet.connect();
+        const result = await walletHook.connect();
         console.log('wallet.connect() completed:', result);
         return result;
       } catch (err) {
@@ -72,16 +80,16 @@ export function useLazorKit() {
         throw err;
       }
     },
-    disconnect: wallet.disconnect,
-    signTransaction: wallet.signTransaction,
-    signAndSendTransaction: wallet.signAndSendTransaction,
-    isConnected: wallet.isConnected,
-    isConnecting: wallet.isConnecting,
-    publicKey: wallet.account?.smartWallet || null,
-    account: wallet.account,
-    smartWalletPubkey: wallet.smartWalletPubkey,
-    error: wallet.error,
-    isSigning: wallet.isSigning,
+    disconnect: walletHook.disconnect,
+    signMessage: walletHook.signMessage,
+    signAndSendTransaction: walletHook.signAndSendTransaction,
+    isConnected: !!walletHook.wallet?.smartWallet,
+    isConnecting: walletHook.isConnecting,
+    publicKey: smartWalletAddress,
+    wallet: walletHook.wallet,
+    smartWalletPubkey,
+    error: walletHook.error,
+    isSigning: walletHook.isSigning,
   };
 }
 
