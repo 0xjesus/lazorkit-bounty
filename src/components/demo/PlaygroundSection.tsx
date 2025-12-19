@@ -31,7 +31,7 @@ export function PlaygroundSection() {
   const {
     connect,
     disconnect,
-    signMessage,
+    signTransaction,
     signAndSendTransaction,
     isConnected,
     isConnecting,
@@ -103,25 +103,32 @@ export function PlaygroundSection() {
     }
   };
 
-  // Step 2: Sign Message
+  // Step 2: Sign Transaction (without sending)
   const handleSignMessage = async () => {
-    if (!isConnected || !signMessage) {
+    if (!isConnected || !signTransaction || !smartWalletPubkey) {
       addLog('error', 'Please connect wallet first');
       return;
     }
 
     setIsSigning(true);
     try {
-      addLog('pending', 'Requesting message signature...');
-      addLog('info', 'Message: "Hello from LazorKit Playground!"');
+      addLog('pending', 'Requesting transaction signature...');
+      addLog('info', 'Creating demo instruction to sign');
 
-      const result = await signMessage('Hello from LazorKit Playground!');
+      // Create a simple self-transfer instruction for signing demo
+      const instruction = SystemProgram.transfer({
+        fromPubkey: smartWalletPubkey,
+        toPubkey: smartWalletPubkey,
+        lamports: 0,
+      });
 
-      addLog('success', 'Message signed successfully!');
-      addLog('info', `Signature: ${result.signature.slice(0, 20)}...`);
+      const signedTx = await signTransaction(instruction);
+
+      addLog('success', 'Transaction signed successfully!');
+      addLog('info', 'Transaction ready to be sent');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Signing failed';
-      addLog('error', 'Message signing failed', message);
+      addLog('error', 'Transaction signing failed', message);
     } finally {
       setIsSigning(false);
     }
@@ -149,14 +156,8 @@ export function PlaygroundSection() {
       addLog('info', 'Gas fees sponsored by Paymaster');
       addLog('pending', 'Awaiting passkey signature...');
 
-      // Sign and send with SDK 2.0.0 API
-      const txSignature = await signAndSendTransaction({
-        instructions: [instruction],
-        transactionOptions: {
-          feeToken: 'USDC',
-          computeUnitLimit: 200_000,
-        },
-      });
+      // Sign and send with SDK 1.4.3-beta API (takes single instruction)
+      const txSignature = await signAndSendTransaction(instruction);
 
       setLastSignature(txSignature);
       addLog('success', 'Transaction confirmed! 🎉');

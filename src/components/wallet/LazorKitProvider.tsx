@@ -16,7 +16,7 @@ interface LazorKitWrapperProps {
 // Configuration from environment variables
 const CONFIG = {
   rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.lazorkit.xyz/',
-  portalUrl: process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.lazor.sh',
+  ipfsUrl: process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.lazor.sh',
   paymasterUrl: process.env.NEXT_PUBLIC_PAYMASTER_URL || 'https://kora.devnet.lazorkit.com',
 };
 
@@ -24,9 +24,9 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    console.log('=== LAZORKIT PROVIDER INIT ===');
+    console.log('=== LAZORKIT PROVIDER INIT (v1.4.3-beta) ===');
     console.log('RPC:', CONFIG.rpcUrl);
-    console.log('Portal:', CONFIG.portalUrl);
+    console.log('IPFS/Portal:', CONFIG.ipfsUrl);
     console.log('Paymaster:', CONFIG.paymasterUrl);
     setMounted(true);
   }, []);
@@ -44,10 +44,8 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
   return (
     <LazorkitProvider
       rpcUrl={CONFIG.rpcUrl}
-      portalUrl={CONFIG.portalUrl}
-      paymasterConfig={{
-        paymasterUrl: CONFIG.paymasterUrl,
-      }}
+      ipfsUrl={CONFIG.ipfsUrl}
+      paymasterUrl={CONFIG.paymasterUrl}
     >
       {children}
     </LazorkitProvider>
@@ -75,15 +73,15 @@ export function useLazorKit() {
       }
     },
     disconnect: wallet.disconnect,
-    signMessage: wallet.signMessage,
+    signTransaction: wallet.signTransaction,
     signAndSendTransaction: wallet.signAndSendTransaction,
     isConnected: wallet.isConnected,
     isConnecting: wallet.isConnecting,
-    publicKey: wallet.wallet?.smartWallet || null,
-    wallet: wallet.wallet,
+    publicKey: wallet.account?.smartWallet || null,
+    account: wallet.account,
     smartWalletPubkey: wallet.smartWalletPubkey,
-    error: null,
-    connection: null,
+    error: wallet.error,
+    isSigning: wallet.isSigning,
   };
 }
 
