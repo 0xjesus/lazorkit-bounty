@@ -32,6 +32,10 @@ export function LazorKitWrapper({ children }: LazorKitWrapperProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    console.log('=== LAZORKIT PROVIDER INIT ===');
+    console.log('Config:', JSON.stringify(LAZORKIT_CONFIG, null, 2));
+    console.log('Window:', typeof window);
+    console.log('Buffer:', typeof window !== 'undefined' ? !!window.Buffer : 'N/A');
     setMounted(true);
   }, []);
 

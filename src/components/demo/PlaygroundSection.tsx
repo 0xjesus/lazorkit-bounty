@@ -64,22 +64,40 @@ export function PlaygroundSection() {
 
   // Step 1: Connect with Passkey
   const handleConnect = async () => {
+    console.log('=== LAZORKIT DEBUG START ===');
+    console.log('[1] handleConnect() called');
+    console.log('[2] isConnecting:', isConnecting);
+    console.log('[3] isConnected:', isConnected);
+    console.log('[4] wallet:', wallet);
+    console.log('[5] connect function type:', typeof connect);
+
     try {
       addLog('pending', 'Initiating passkey authentication...');
       addLog('info', 'Opening LazorKit portal for WebAuthn');
 
+      console.log('[6] Calling connect()...');
       const result = await connect();
+      console.log('[7] connect() returned:', result);
+      console.log('[8] result type:', typeof result);
 
       // Use result directly since React state may not be updated yet
       if (result && result.smartWallet) {
+        console.log('[9] SUCCESS - smartWallet:', result.smartWallet);
         addLog('success', 'Wallet connected successfully!');
         addLog('info', `Smart Wallet: ${result.smartWallet}`);
       } else {
+        console.log('[9] Connected but no smartWallet in result');
         addLog('success', 'Wallet connected!');
       }
+      console.log('=== LAZORKIT DEBUG END ===');
     } catch (error) {
+      console.error('[ERROR] connect() failed:', error);
+      console.error('[ERROR] Error type:', typeof error);
+      console.error('[ERROR] Error message:', (error as Error)?.message);
+      console.error('[ERROR] Error stack:', (error as Error)?.stack);
       const message = error instanceof Error ? error.message : 'Connection failed';
       addLog('error', 'Connection failed', message);
+      console.log('=== LAZORKIT DEBUG END (ERROR) ===');
     }
   };
 
