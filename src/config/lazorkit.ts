@@ -6,8 +6,8 @@
  */
 
 export const LAZORKIT_CONFIG = {
-  // Solana RPC endpoint - Using Devnet for development
-  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
+  // Solana RPC endpoint - Using LazorKit's RPC
+  rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.lazorkit.xyz/',
 
   // LazorKit authentication portal
   portalUrl: process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.lazor.sh',
