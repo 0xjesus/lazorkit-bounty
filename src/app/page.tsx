@@ -488,7 +488,7 @@ export default function Home() {
   return (
     <LazorkitProvider
       rpcUrl="https://api.devnet.solana.com"
-      ipfsUrl="https://gateway.pinata.cloud"
+      ipfsUrl="https://portal.lazor.sh"
       paymasterUrl="https://kora.devnet.lazorkit.com"
     >
       <WalletDemo />
