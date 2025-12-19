@@ -26,11 +26,22 @@ function WalletDemo() {
 
   const handleConnect = async () => {
     console.log('=== CONNECT START ===');
+    console.log('connect function:', connect);
+    console.log('isConnecting before:', isConnecting);
     setError(null);
+
+    // Add timeout to detect if it hangs
+    const timeoutId = setTimeout(() => {
+      console.error('!!! CONNECT TIMEOUT - hung for 10 seconds !!!');
+    }, 10000);
+
     try {
+      console.log('Calling connect()...');
       const result = await connect();
+      clearTimeout(timeoutId);
       console.log('Connect result:', result);
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('Connection failed:', err);
       setError(err instanceof Error ? err.message : 'Connection failed');
     }
