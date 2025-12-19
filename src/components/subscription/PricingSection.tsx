@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useWallet } from '@lazorkit/wallet';
+import { useLazorKit } from '@/components/wallet/LazorKitProvider';
 import { PricingCard } from './PricingCard';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '@/constants/plans';
@@ -15,7 +15,7 @@ import type { SubscriptionPlan } from '@/types';
  * Integrates with LazorKit for gasless transactions.
  */
 export function PricingSection() {
-  const { isConnected } = useWallet();
+  const { isConnected } = useLazorKit();
   const { subscribe, isProcessing, error, subscription, clearError } = useSubscription();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);

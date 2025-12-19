@@ -1,6 +1,6 @@
 'use client';
 
-import { useWallet } from '@lazorkit/wallet';
+import { useLazorKit } from '@/components/wallet/LazorKitProvider';
 import { Fingerprint, Zap, Shield, ArrowRight } from 'lucide-react';
 
 /**
@@ -9,7 +9,7 @@ import { Fingerprint, Zap, Shield, ArrowRight } from 'lucide-react';
  * Landing page hero with feature highlights.
  */
 export function Hero() {
-  const { isConnected, wallet } = useWallet();
+  const { isConnected, publicKey } = useLazorKit();
 
   return (
     <section className="relative pt-32 pb-16 overflow-hidden">
@@ -42,11 +42,11 @@ export function Hero() {
         </p>
 
         {/* Connection Status */}
-        {isConnected && wallet && (
+        {isConnected && publicKey && (
           <div className="inline-flex items-center gap-2 rounded-xl bg-zinc-800/50 border border-zinc-700 px-4 py-2 mb-8">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-sm text-zinc-300">
-              Connected: <span className="font-mono">{wallet.smartWallet.slice(0, 8)}...{wallet.smartWallet.slice(-8)}</span>
+              Connected: <span className="font-mono">{publicKey.slice(0, 8)}...{publicKey.slice(-8)}</span>
             </span>
           </div>
         )}

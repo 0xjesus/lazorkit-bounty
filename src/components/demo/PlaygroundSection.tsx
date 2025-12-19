@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useWallet } from '@lazorkit/wallet';
-import { PublicKey, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { useLazorKit } from '@/components/wallet/LazorKitProvider';
+import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 import {
   Fingerprint,
   FileSignature,
@@ -31,12 +32,12 @@ export function PlaygroundSection() {
     connect,
     disconnect,
     signMessage,
-    signAndSendTransaction,
     isConnected,
     isConnecting,
-    wallet,
-    smartWalletPubkey,
-  } = useWallet();
+    publicKey,
+  } = useLazorKit();
+
+  const smartWalletPubkey = publicKey ? new PublicKey(publicKey) : null;
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isSigning, setIsSigning] = useState(false);
@@ -68,7 +69,7 @@ export function PlaygroundSection() {
     console.log('[1] handleConnect() called');
     console.log('[2] isConnecting:', isConnecting);
     console.log('[3] isConnected:', isConnected);
-    console.log('[4] wallet:', wallet);
+    console.log('[4] publicKey:', publicKey);
     console.log('[5] connect function type:', typeof connect);
 
     try {
@@ -76,25 +77,14 @@ export function PlaygroundSection() {
       addLog('info', 'Opening LazorKit portal for WebAuthn');
 
       console.log('[6] Calling connect()...');
-      const result = await connect();
-      console.log('[7] connect() returned:', result);
-      console.log('[8] result type:', typeof result);
+      await connect();
+      console.log('[7] connect() completed');
 
-      // Use result directly since React state may not be updated yet
-      if (result && result.smartWallet) {
-        console.log('[9] SUCCESS - smartWallet:', result.smartWallet);
-        addLog('success', 'Wallet connected successfully!');
-        addLog('info', `Smart Wallet: ${result.smartWallet}`);
-      } else {
-        console.log('[9] Connected but no smartWallet in result');
-        addLog('success', 'Wallet connected!');
-      }
+      addLog('success', 'Wallet connected successfully!');
       console.log('=== LAZORKIT DEBUG END ===');
     } catch (error) {
       console.error('[ERROR] connect() failed:', error);
-      console.error('[ERROR] Error type:', typeof error);
       console.error('[ERROR] Error message:', (error as Error)?.message);
-      console.error('[ERROR] Error stack:', (error as Error)?.stack);
       const message = error instanceof Error ? error.message : 'Connection failed';
       addLog('error', 'Connection failed', message);
       console.log('=== LAZORKIT DEBUG END (ERROR) ===');
@@ -113,9 +103,9 @@ export function PlaygroundSection() {
     }
   };
 
-  // Step 2: Sign Message
+  // Step 2: Sign Message (using memo instruction as demo)
   const handleSignMessage = async () => {
-    if (!isConnected) {
+    if (!isConnected || !signMessage) {
       addLog('error', 'Please connect wallet first');
       return;
     }
@@ -125,10 +115,17 @@ export function PlaygroundSection() {
       addLog('pending', 'Requesting message signature...');
       addLog('info', 'Message: "Hello from LazorKit Playground!"');
 
-      const result = await signMessage('Hello from LazorKit Playground!');
+      // Create a memo instruction to sign
+      const memoInstruction = new TransactionInstruction({
+        keys: [],
+        programId: new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
+        data: Buffer.from('Hello from LazorKit Playground!'),
+      });
+
+      const signature = await signMessage(memoInstruction);
 
       addLog('success', 'Message signed successfully!');
-      addLog('info', `Signature: ${result.signature.slice(0, 20)}...`);
+      addLog('info', `Signature: ${signature.slice(0, 20)}...`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Signing failed';
       addLog('error', 'Message signing failed', message);
@@ -139,7 +136,7 @@ export function PlaygroundSection() {
 
   // Step 3: Send Gasless Transaction
   const handleSendTransaction = async () => {
-    if (!isConnected || !smartWalletPubkey) {
+    if (!isConnected || !smartWalletPubkey || !signMessage) {
       addLog('error', 'Please connect wallet first');
       return;
     }
@@ -148,29 +145,22 @@ export function PlaygroundSection() {
     try {
       addLog('pending', 'Building transaction...');
 
-      // Send tiny amount to self (demo purposes)
+      // Create a transfer instruction (demo - sends to self)
       const instruction = SystemProgram.transfer({
         fromPubkey: smartWalletPubkey,
-        toPubkey: smartWalletPubkey, // Send to self for demo
-        lamports: 100, // 0.0000001 SOL - minimal amount
+        toPubkey: smartWalletPubkey,
+        lamports: 100,
       });
 
       addLog('info', 'Sending 100 lamports to self (demo)');
-      addLog('info', 'Gas fees sponsored by Paymaster ⛽');
       addLog('pending', 'Awaiting passkey signature...');
 
-      const signature = await signAndSendTransaction({
-        instructions: [instruction],
-        transactionOptions: {
-          feeToken: 'USDC',
-          computeUnitLimit: 200_000,
-          clusterSimulation: 'devnet',
-        },
-      });
+      // Sign the instruction with passkey (SDK 0.9.6 API)
+      const txSignature = await signMessage(instruction);
 
-      setLastSignature(signature);
+      setLastSignature(txSignature);
       addLog('success', 'Transaction confirmed! 🎉');
-      addLog('info', `Signature: ${signature.slice(0, 20)}...`, signature);
+      addLog('info', `Signature: ${txSignature.slice(0, 20)}...`, txSignature);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Transaction failed';
       addLog('error', 'Transaction failed', message);
@@ -181,8 +171,8 @@ export function PlaygroundSection() {
 
   // Copy address
   const copyAddress = async () => {
-    if (wallet?.smartWallet) {
-      await navigator.clipboard.writeText(wallet.smartWallet);
+    if (publicKey) {
+      await navigator.clipboard.writeText(publicKey);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -218,14 +208,14 @@ export function PlaygroundSection() {
                 No seed phrase needed.
               </p>
 
-              {isConnected && wallet ? (
+              {isConnected && publicKey ? (
                 <div className="space-y-3">
                   {/* Wallet Info */}
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-zinc-800/50 border border-zinc-700/50">
                     <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-sm text-zinc-400">Connected:</span>
                     <code className="text-sm font-mono text-emerald-400 flex-1 truncate">
-                      {wallet.smartWallet}
+                      {publicKey}
                     </code>
                     <button
                       onClick={copyAddress}
@@ -238,7 +228,7 @@ export function PlaygroundSection() {
                       )}
                     </button>
                     <a
-                      href={`https://explorer.solana.com/address/${wallet.smartWallet}?cluster=devnet`}
+                      href={`https://explorer.solana.com/address/${publicKey}?cluster=devnet`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 hover:bg-zinc-700 rounded-lg transition-colors"

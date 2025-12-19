@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useWallet } from '@lazorkit/wallet';
+import { useLazorKit } from '@/components/wallet/LazorKitProvider';
 import {
   PublicKey,
   TransactionInstruction,
@@ -43,7 +43,8 @@ interface UseSubscriptionReturn {
  * ```
  */
 export function useSubscription(): UseSubscriptionReturn {
-  const { signAndSendTransaction, smartWalletPubkey, isConnected } = useWallet();
+  const { signMessage, publicKey, isConnected } = useLazorKit();
+  const smartWalletPubkey = publicKey ? new PublicKey(publicKey) : null;
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
@@ -80,27 +81,22 @@ export function useSubscription(): UseSubscriptionReturn {
       setError(null);
 
       try {
+        if (!signMessage) {
+          throw new Error('Wallet not fully initialized');
+        }
+
         // For demo purposes, we send a small amount of SOL as payment
-        // In production, use SPL token transfer for USDC
-        const lamportsToSend = Math.floor(plan.price * LAMPORTS_PER_SOL * 0.001); // Convert to lamports (scaled down for devnet)
+        const lamportsToSend = Math.floor(plan.price * LAMPORTS_PER_SOL * 0.001);
 
         // Create transfer instruction
         const transferInstruction: TransactionInstruction = SystemProgram.transfer({
           fromPubkey: smartWalletPubkey,
           toPubkey: TREASURY_ADDRESS,
-          lamports: lamportsToSend > 0 ? lamportsToSend : 1000, // Minimum 1000 lamports for demo
+          lamports: lamportsToSend > 0 ? lamportsToSend : 1000,
         });
 
-        // Sign and send transaction using LazorKit's gasless feature
-        const signature = await signAndSendTransaction({
-          instructions: [transferInstruction],
-          transactionOptions: {
-            // The paymaster handles gas fees automatically
-            feeToken: 'USDC', // Pay fees in USDC (sponsored)
-            computeUnitLimit: 200_000,
-            clusterSimulation: LAZORKIT_CONFIG.clusterSimulation,
-          },
-        });
+        // Sign and send with passkey (SDK 0.9.6 API)
+        const signature = await signMessage(transferInstruction);
 
         // Record the transaction
         const txRecord: TransactionRecord = {
@@ -132,7 +128,7 @@ export function useSubscription(): UseSubscriptionReturn {
         setIsProcessing(false);
       }
     },
-    [isConnected, smartWalletPubkey, signAndSendTransaction]
+    [isConnected, smartWalletPubkey, signMessage]
   );
 
   return {
