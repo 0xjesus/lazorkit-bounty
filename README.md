@@ -82,16 +82,20 @@ NEXT_PUBLIC_PAYMASTER_URL=https://kora.devnet.lazorkit.com
 src/
 ├── app/
 │   ├── layout.tsx          # Root layout
-│   ├── page.tsx            # Main demo page (all-in-one)
+│   ├── page.tsx            # Main demo (self-contained)
 │   └── globals.css         # Tailwind styles
 ├── components/
-│   ├── wallet/
-│   │   └── LazorKitProvider.tsx  # SDK wrapper hook
-│   └── ui/                 # Reusable UI components
+│   └── wallet/
+│       ├── LazorKitProvider.tsx  # SDK wrapper (for tutorials)
+│       └── ConnectButton.tsx     # Example component
 ├── hooks/
-│   └── useSubscription.ts  # Example: subscription payments
-└── config/
-    └── lazorkit.ts         # Configuration constants
+│   └── useSubscription.ts  # Subscription payment hook
+├── config/
+│   └── lazorkit.ts         # SDK configuration
+├── constants/
+│   └── plans.ts            # Subscription plans
+└── types/
+    └── index.ts            # TypeScript types
 ```
 
 ---
