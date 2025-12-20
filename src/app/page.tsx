@@ -135,11 +135,49 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 // MAIN DEMO COMPONENT
 // =============================================================================
 
+// =============================================================================
+// LOCALSTORAGE HELPERS
+// =============================================================================
+const STORAGE_KEYS = {
+  LOGS: 'lazorkit_logs',
+  TRANSACTIONS: 'lazorkit_transactions',
+  LAST_WALLET: 'lazorkit_last_wallet',
+};
+
+function loadFromStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+function saveToStorage<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error('Failed to save to localStorage:', e);
+  }
+}
+
+interface StoredTransaction {
+  signature: string;
+  type: 'transfer' | 'subscription' | 'airdrop';
+  timestamp: string;
+  status: 'success' | 'failed';
+  details?: string;
+}
+
 function WalletDemo() {
   const [balance, setBalance] = useState(0);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>(() => loadFromStorage(STORAGE_KEYS.LOGS, []));
+  const [transactions, setTransactions] = useState<StoredTransaction[]>(() => loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []));
   const [isSigning, setIsSigning] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isAirdropping, setIsAirdropping] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastSignature, setLastSignature] = useState<string | null>(null);
@@ -184,8 +222,27 @@ function WalletDemo() {
 
   const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
     console.log(`📝 Log [${type}]:`, message, details || '');
-    setLogs((prev) => [{ id: crypto.randomUUID(), timestamp: new Date(), type, message, details }, ...prev].slice(0, 15));
+    setLogs((prev) => {
+      const newLogs = [{ id: crypto.randomUUID(), timestamp: new Date(), type, message, details }, ...prev].slice(0, 30);
+      saveToStorage(STORAGE_KEYS.LOGS, newLogs);
+      return newLogs;
+    });
   }, []);
+
+  const addTransaction = useCallback((tx: Omit<StoredTransaction, 'timestamp'>) => {
+    setTransactions((prev) => {
+      const newTx = [{ ...tx, timestamp: new Date().toISOString() }, ...prev].slice(0, 50);
+      saveToStorage(STORAGE_KEYS.TRANSACTIONS, newTx);
+      return newTx;
+    });
+  }, []);
+
+  // Persist wallet address
+  useEffect(() => {
+    if (smartWalletAddress) {
+      saveToStorage(STORAGE_KEYS.LAST_WALLET, smartWalletAddress);
+    }
+  }, [smartWalletAddress]);
 
   const copyAddress = async () => {
     if (smartWalletAddress) {
@@ -285,15 +342,29 @@ function WalletDemo() {
 
   const handleAirdrop = async () => {
     if (!smartWalletPubkey) return;
-    addLog('pending', 'Requesting airdrop...');
+    setIsAirdropping(true);
+    addLog('pending', 'Requesting 1 SOL airdrop from devnet...');
     try {
+      console.log('🪂 Requesting airdrop for:', smartWalletPubkey.toBase58());
       const sig = await connection.requestAirdrop(smartWalletPubkey, LAMPORTS_PER_SOL);
-      await connection.confirmTransaction(sig);
+      console.log('🪂 Airdrop signature:', sig);
+      addLog('info', `Airdrop TX: ${sig.slice(0, 12)}...`);
+
+      await connection.confirmTransaction(sig, 'confirmed');
+      console.log('🪂 Airdrop confirmed!');
+
       addLog('success', '+1 SOL airdropped!');
+      addTransaction({ signature: sig, type: 'airdrop', status: 'success', details: '1 SOL from devnet faucet' });
+
       const newBal = await connection.getBalance(smartWalletPubkey);
       setBalance(newBal);
+      setLastSignature(sig);
     } catch (err) {
+      console.error('🪂 Airdrop failed:', err);
       addLog('error', 'Airdrop failed', (err as Error).message);
+      addTransaction({ signature: '', type: 'airdrop', status: 'failed', details: (err as Error).message });
+    } finally {
+      setIsAirdropping(false);
     }
   };
 
@@ -322,8 +393,14 @@ function WalletDemo() {
       setLastSignature(sig);
       addLog('success', 'Transaction confirmed!');
       addLog('info', `TX: ${sig.slice(0, 12)}...`, sig);
+      addTransaction({ signature: sig, type: 'transfer', status: 'success', details: 'Self-transfer 100 lamports' });
+
+      // Refresh balance
+      const newBal = await connection.getBalance(smartWalletPubkey);
+      setBalance(newBal);
     } catch (err) {
       addLog('error', 'Transaction failed', (err as Error).message);
+      addTransaction({ signature: '', type: 'transfer', status: 'failed', details: (err as Error).message });
     } finally {
       setIsSending(false);
     }
@@ -342,8 +419,14 @@ function WalletDemo() {
       const sig = await signAndSendTransaction({ instructions: [instruction] });
       setLastSignature(sig);
       addLog('success', `Subscribed to ${plan.name}!`);
+      addTransaction({ signature: sig, type: 'subscription', status: 'success', details: `${plan.name} - ${plan.priceDisplay}` });
+
+      // Refresh balance
+      const newBal = await connection.getBalance(smartWalletPubkey);
+      setBalance(newBal);
     } catch (err) {
       addLog('error', 'Subscription failed', (err as Error).message);
+      addTransaction({ signature: '', type: 'subscription', status: 'failed', details: (err as Error).message });
     } finally {
       setIsSubscribing(false);
       setSelectedPlan(null);
@@ -444,10 +527,22 @@ function WalletDemo() {
               {isConnected ? (
                 <>
                   <code className="text-xs font-mono text-violet-400 break-all block mb-3">{smartWalletAddress}</code>
-                  <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                  <div className="flex justify-between items-center pt-3 border-t border-white/10 mb-3">
                     <span className="text-xs text-zinc-500">Balance</span>
-                    <span className="font-bold">{(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL</span>
+                    <span className={`font-bold ${balance === 0 ? 'text-red-400' : 'text-emerald-400'}`}>{(balance / LAMPORTS_PER_SOL).toFixed(4)} SOL</span>
                   </div>
+                  {/* AIRDROP BUTTON - Big and visible! */}
+                  <button
+                    onClick={handleAirdrop}
+                    disabled={isAirdropping}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                  >
+                    {isAirdropping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
+                    {isAirdropping ? 'Airdropping...' : 'Get 1 SOL (Devnet Faucet)'}
+                  </button>
+                  {balance === 0 && (
+                    <p className="text-xs text-amber-400 text-center mt-2">⚠️ You need SOL to send transactions!</p>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-zinc-500">Connect to see your wallet address and balance</p>
@@ -543,6 +638,61 @@ function WalletDemo() {
             )}
           </div>
         </section>
+
+        {/* Transaction History - Persisted in LocalStorage */}
+        {transactions.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Transaction History</h2>
+              <button
+                onClick={() => {
+                  setTransactions([]);
+                  localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+                }}
+                className="text-xs text-zinc-500 hover:text-white"
+              >
+                Clear History
+              </button>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+              <div className="divide-y divide-white/5">
+                {transactions.slice(0, 10).map((tx, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 hover:bg-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                        tx.type === 'airdrop' ? 'bg-amber-500/20' :
+                        tx.type === 'subscription' ? 'bg-violet-500/20' :
+                        'bg-emerald-500/20'
+                      }`}>
+                        {tx.type === 'airdrop' && <Coins className="h-4 w-4 text-amber-400" />}
+                        {tx.type === 'subscription' && <CreditCard className="h-4 w-4 text-violet-400" />}
+                        {tx.type === 'transfer' && <Send className="h-4 w-4 text-emerald-400" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium capitalize">{tx.type}</p>
+                        <p className="text-xs text-zinc-500">{tx.details}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs px-2 py-1 rounded ${tx.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {tx.status}
+                      </span>
+                      {tx.signature && (
+                        <a
+                          href={`https://explorer.solana.com/tx/${tx.signature}?cluster=devnet`}
+                          target="_blank"
+                          className="block text-xs text-zinc-500 hover:text-violet-400 mt-1"
+                        >
+                          {tx.signature.slice(0, 8)}... <ExternalLink className="h-3 w-3 inline" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Subscription Plans - Always Visible */}
         <section className="mb-12">
