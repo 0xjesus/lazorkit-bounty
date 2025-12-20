@@ -26,24 +26,22 @@ import {
 // CONFIGURATION
 // =============================================================================
 
+// HARDCODED - ignoring env variables to avoid misconfiguration
 const CONFIG = {
-  RPC_URL: process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com",
-  PORTAL_URL: process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.lazor.sh",
-  PAYMASTER_URL: process.env.NEXT_PUBLIC_PAYMASTER_URL || "https://kora.devnet.lazorkit.com",
+  RPC_URL: "https://api.devnet.solana.com",
+  PORTAL_URL: "https://portal.lazor.sh",
+  PAYMASTER_URL: "https://kora.devnet.lazorkit.com",
 };
 
 // =============================================================================
 // DEBUG LOGGING
 // =============================================================================
 console.log('========================================');
-console.log('🚀 LAZORKIT CONFIG INITIALIZED');
+console.log('🚀 LAZORKIT CONFIG (HARDCODED)');
 console.log('========================================');
 console.log('RPC_URL:', CONFIG.RPC_URL);
 console.log('PORTAL_URL:', CONFIG.PORTAL_URL);
 console.log('PAYMASTER_URL:', CONFIG.PAYMASTER_URL);
-console.log('ENV RPC:', process.env.NEXT_PUBLIC_RPC_URL);
-console.log('ENV PORTAL:', process.env.NEXT_PUBLIC_PORTAL_URL);
-console.log('ENV PAYMASTER:', process.env.NEXT_PUBLIC_PAYMASTER_URL);
 console.log('========================================');
 
 const connection = new Connection(CONFIG.RPC_URL);
