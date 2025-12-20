@@ -361,8 +361,15 @@ function WalletDemo() {
       setLastSignature(sig);
     } catch (err) {
       console.error('🪂 Airdrop failed:', err);
-      addLog('error', 'Airdrop failed', (err as Error).message);
-      addTransaction({ signature: '', type: 'airdrop', status: 'failed', details: (err as Error).message });
+      const errorMsg = (err as Error).message;
+
+      // Check for rate limit error
+      if (errorMsg.includes('429') || errorMsg.includes('limit')) {
+        addLog('error', 'Rate limited! Use faucet.solana.com instead');
+      } else {
+        addLog('error', 'Airdrop failed', errorMsg);
+      }
+      addTransaction({ signature: '', type: 'airdrop', status: 'failed', details: errorMsg });
     } finally {
       setIsAirdropping(false);
     }
@@ -538,8 +545,16 @@ function WalletDemo() {
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
                   >
                     {isAirdropping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
-                    {isAirdropping ? 'Airdropping...' : 'Get 1 SOL (Devnet Faucet)'}
+                    {isAirdropping ? 'Airdropping...' : 'Get 1 SOL (Devnet)'}
                   </button>
+                  {/* Alternative faucet link */}
+                  <a
+                    href={`https://faucet.solana.com/?address=${smartWalletAddress}`}
+                    target="_blank"
+                    className="block text-center text-xs text-zinc-500 hover:text-violet-400 mt-2"
+                  >
+                    Or use Solana Faucet website <ExternalLink className="h-3 w-3 inline" />
+                  </a>
                   {balance === 0 && (
                     <p className="text-xs text-amber-400 text-center mt-2">⚠️ You need SOL to send transactions!</p>
                   )}
