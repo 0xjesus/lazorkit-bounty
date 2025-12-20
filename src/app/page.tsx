@@ -32,7 +32,22 @@ const CONFIG = {
   PAYMASTER_URL: process.env.NEXT_PUBLIC_PAYMASTER_URL || "https://kora.devnet.lazorkit.com",
 };
 
+// =============================================================================
+// DEBUG LOGGING
+// =============================================================================
+console.log('========================================');
+console.log('🚀 LAZORKIT CONFIG INITIALIZED');
+console.log('========================================');
+console.log('RPC_URL:', CONFIG.RPC_URL);
+console.log('PORTAL_URL:', CONFIG.PORTAL_URL);
+console.log('PAYMASTER_URL:', CONFIG.PAYMASTER_URL);
+console.log('ENV RPC:', process.env.NEXT_PUBLIC_RPC_URL);
+console.log('ENV PORTAL:', process.env.NEXT_PUBLIC_PORTAL_URL);
+console.log('ENV PAYMASTER:', process.env.NEXT_PUBLIC_PAYMASTER_URL);
+console.log('========================================');
+
 const connection = new Connection(CONFIG.RPC_URL);
+console.log('✅ Solana Connection created with RPC:', CONFIG.RPC_URL);
 
 // =============================================================================
 // SUBSCRIPTION PLANS
@@ -135,11 +150,42 @@ function WalletDemo() {
 
   const { wallet, isConnecting, isSigning: sdkSigning, connect, disconnect, signAndSendTransaction, signMessage } = useWallet();
 
+  // Debug: Log wallet hook state
+  console.log('🔍 useWallet() state:', {
+    wallet,
+    isConnecting,
+    sdkSigning,
+    hasConnect: typeof connect === 'function',
+    hasDisconnect: typeof disconnect === 'function',
+    hasSignAndSendTransaction: typeof signAndSendTransaction === 'function',
+    hasSignMessage: typeof signMessage === 'function',
+  });
+
   const isConnected = !!wallet?.smartWallet;
   const smartWalletAddress = wallet?.smartWallet || null;
   const smartWalletPubkey = smartWalletAddress ? new PublicKey(smartWalletAddress) : null;
 
+  console.log('🔐 Connection state:', { isConnected, smartWalletAddress });
+
+  // Log wallet changes
+  useEffect(() => {
+    console.log('========================================');
+    console.log('👛 WALLET STATE CHANGED');
+    console.log('========================================');
+    console.log('wallet:', wallet);
+    console.log('isConnecting:', isConnecting);
+    console.log('sdkSigning:', sdkSigning);
+    if (wallet) {
+      console.log('Wallet details:');
+      console.log('  - smartWallet:', wallet.smartWallet);
+      console.log('  - credentialId:', wallet.credentialId);
+      console.log('  - platform:', wallet.platform);
+    }
+    console.log('========================================');
+  }, [wallet, isConnecting, sdkSigning]);
+
   const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
+    console.log(`📝 Log [${type}]:`, message, details || '');
     setLogs((prev) => [{ id: crypto.randomUUID(), timestamp: new Date(), type, message, details }, ...prev].slice(0, 15));
   }, []);
 
@@ -159,13 +205,76 @@ function WalletDemo() {
 
   // Handlers
   const handleConnect = async () => {
+    console.log('========================================');
+    console.log('🚀 handleConnect() STARTED');
+    console.log('========================================');
+    console.log('Step 1: Checking connect function exists:', typeof connect);
+
     addLog('pending', 'Opening passkey authentication...');
+
     try {
+      console.log('Step 2: About to call connect()...');
+      console.log('Connect function:', connect);
+      console.log('Connect function toString:', connect?.toString?.().slice(0, 100));
+
+      const startTime = Date.now();
+      console.log('Step 3: Calling connect() NOW at', new Date().toISOString());
+
       const result = await connect();
+
+      const endTime = Date.now();
+      console.log('Step 4: connect() returned after', endTime - startTime, 'ms');
+      console.log('Result:', result);
+      console.log('Result type:', typeof result);
+      console.log('Result keys:', result ? Object.keys(result) : 'null');
+
+      if (result) {
+        console.log('Step 5: Result details:');
+        console.log('  - smartWallet:', result.smartWallet);
+        console.log('  - credentialId:', result.credentialId);
+        console.log('  - passkeyPubkey:', result.passkeyPubkey);
+        console.log('  - platform:', result.platform);
+      }
+
       addLog('success', 'Connected successfully!');
-      if (result?.smartWallet) addLog('info', `Wallet: ${result.smartWallet.slice(0, 8)}...${result.smartWallet.slice(-4)}`);
+      if (result?.smartWallet) {
+        console.log('Step 6: Smart wallet obtained:', result.smartWallet);
+        addLog('info', `Wallet: ${result.smartWallet.slice(0, 8)}...${result.smartWallet.slice(-4)}`);
+      }
+
+      console.log('========================================');
+      console.log('✅ handleConnect() COMPLETED SUCCESSFULLY');
+      console.log('========================================');
     } catch (err) {
+      console.log('========================================');
+      console.log('❌ handleConnect() FAILED');
+      console.log('========================================');
+      console.error('Error object:', err);
+      console.error('Error type:', typeof err);
+      console.error('Error name:', (err as Error).name);
+      console.error('Error message:', (err as Error).message);
+      console.error('Error stack:', (err as Error).stack);
+
+      if (err instanceof Error) {
+        console.error('Full error details:', {
+          name: err.name,
+          message: err.message,
+          stack: err.stack,
+          cause: (err as any).cause,
+        });
+      }
+
+      // Check if it's a network error
+      if ((err as Error).message?.includes('fetch')) {
+        console.error('🌐 This appears to be a NETWORK ERROR');
+        console.error('Check that these URLs are accessible:');
+        console.error('  - RPC:', CONFIG.RPC_URL);
+        console.error('  - Portal:', CONFIG.PORTAL_URL);
+        console.error('  - Paymaster:', CONFIG.PAYMASTER_URL);
+      }
+
       addLog('error', 'Connection failed', (err as Error).message);
+      console.log('========================================');
     }
   };
 
@@ -521,7 +630,42 @@ function WalletDemo() {
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    console.log('========================================');
+    console.log('🏠 Home component MOUNTED');
+    console.log('========================================');
+    console.log('LazorkitProvider will receive:');
+    console.log('  - rpcUrl:', CONFIG.RPC_URL);
+    console.log('  - portalUrl:', CONFIG.PORTAL_URL);
+    console.log('  - paymasterConfig:', { paymasterUrl: CONFIG.PAYMASTER_URL });
+    console.log('========================================');
+
+    // Test RPC connectivity
+    console.log('🔌 Testing RPC connection...');
+    fetch(CONFIG.RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getHealth' }),
+    })
+      .then((res) => res.json())
+      .then((data) => console.log('✅ RPC Health check:', data))
+      .catch((err) => console.error('❌ RPC Health check FAILED:', err));
+
+    // Test Portal connectivity
+    console.log('🔌 Testing Portal connection...');
+    fetch(CONFIG.PORTAL_URL, { method: 'HEAD', mode: 'no-cors' })
+      .then(() => console.log('✅ Portal reachable (no-cors)'))
+      .catch((err) => console.error('❌ Portal check FAILED:', err));
+
+    // Test Paymaster connectivity
+    console.log('🔌 Testing Paymaster connection...');
+    fetch(CONFIG.PAYMASTER_URL, { method: 'HEAD', mode: 'no-cors' })
+      .then(() => console.log('✅ Paymaster reachable (no-cors)'))
+      .catch((err) => console.error('❌ Paymaster check FAILED:', err));
+
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
     return (
@@ -530,6 +674,12 @@ export default function Home() {
       </div>
     );
   }
+
+  console.log('🎨 Rendering LazorkitProvider with config:', {
+    rpcUrl: CONFIG.RPC_URL,
+    portalUrl: CONFIG.PORTAL_URL,
+    paymasterConfig: { paymasterUrl: CONFIG.PAYMASTER_URL },
+  });
 
   return (
     <LazorkitProvider rpcUrl={CONFIG.RPC_URL} portalUrl={CONFIG.PORTAL_URL} paymasterConfig={{ paymasterUrl: CONFIG.PAYMASTER_URL }}>
