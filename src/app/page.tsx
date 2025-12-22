@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.2.0-" + Date.now();
+const BUILD_VERSION = "v1.3.0-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -183,7 +183,16 @@ interface StoredTransaction {
 
 function WalletDemo() {
   const [balance, setBalance] = useState(0);
-  const [logs, setLogs] = useState<LogEntry[]>(() => loadFromStorage(STORAGE_KEYS.LOGS, []));
+  // Filter out any pending logs on load - they should never persist
+  const [logs, setLogs] = useState<LogEntry[]>(() => {
+    const loaded = loadFromStorage<LogEntry[]>(STORAGE_KEYS.LOGS, []);
+    const filtered = loaded.filter(log => log.type !== 'pending');
+    console.log('%c📂 LOADED LOGS FROM STORAGE:', 'color: #f59e0b; font-weight: bold');
+    console.log('   Raw count:', loaded.length);
+    console.log('   After filtering pending:', filtered.length);
+    console.log('   Types:', filtered.map(l => l.type));
+    return filtered;
+  });
   const [transactions, setTransactions] = useState<StoredTransaction[]>(() => loadFromStorage(STORAGE_KEYS.TRANSACTIONS, []));
   const [isSigning, setIsSigning] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -251,18 +260,22 @@ function WalletDemo() {
   }, [logs]);
 
   // Clear all pending logs - call this when an operation completes
-  const clearPendingLogs = () => {
+  const clearPendingLogs = useCallback(() => {
     console.log('%c🧹 CLEARING ALL PENDING LOGS', 'color: #f59e0b; font-weight: bold; font-size: 14px');
     setLogs((prev) => {
+      const pendingCount = prev.filter(log => log.type === 'pending').length;
+      if (pendingCount === 0) {
+        console.log('%c   No pending logs to remove', 'color: #f59e0b');
+        return prev;
+      }
       const filtered = prev.filter(log => log.type !== 'pending');
-      console.log('%c   Removed', 'color: #f59e0b', prev.length - filtered.length, 'pending logs');
-      // Save filtered logs (without pending) to localStorage
+      console.log('%c   ✅ REMOVED', 'color: #22c55e; font-weight: bold', pendingCount, 'pending logs');
       saveToStorage(STORAGE_KEYS.LOGS, filtered);
       return filtered;
     });
-  };
+  }, []);
 
-  const addLog = (type: LogEntry['type'], message: string, details?: string) => {
+  const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
     const logId = crypto.randomUUID();
     const logEntry: LogEntry = {
       id: logId,
@@ -272,31 +285,32 @@ function WalletDemo() {
       details
     };
 
-    console.log('%c📝 ADDING LOG:', 'color: #8b5cf6; font-weight: bold; font-size: 14px', { type, message });
+    console.log('%c📝 ADD LOG:', 'color: #8b5cf6; font-weight: bold; font-size: 14px', type, '-', message);
 
     setLogs((prev) => {
-      console.log('%c   Previous logs:', 'color: #8b5cf6', prev.length, prev.map(l => l.type));
+      // ALWAYS filter out pending logs when adding success, error, or info
+      // The info logs come right after success, so we need to keep filtering
+      const shouldFilter = type === 'success' || type === 'error' || type === 'info';
 
-      let newLogs: LogEntry[];
-
-      // If adding success or error, REMOVE all pending logs first
-      if (type === 'success' || type === 'error') {
-        const withoutPending = prev.filter(log => log.type !== 'pending');
-        console.log('%c   ✅ Filtering out pending logs:', 'color: #22c55e', prev.length - withoutPending.length, 'removed');
-        newLogs = [logEntry, ...withoutPending].slice(0, 30);
-      } else {
-        newLogs = [logEntry, ...prev].slice(0, 30);
+      let baseLogs = prev;
+      if (shouldFilter) {
+        const pendingCount = prev.filter(log => log.type === 'pending').length;
+        if (pendingCount > 0) {
+          baseLogs = prev.filter(log => log.type !== 'pending');
+          console.log('%c   🗑️ Filtered out', 'color: #ef4444; font-weight: bold', pendingCount, 'pending logs');
+        }
       }
 
-      console.log('%c   New logs:', 'color: #22c55e', newLogs.length, newLogs.map(l => `[${l.type}] ${l.message.slice(0, 30)}`));
+      const newLogs = [logEntry, ...baseLogs].slice(0, 30);
+      console.log('%c   📋 Logs now:', 'color: #22c55e', newLogs.map(l => l.type).join(', '));
 
-      // NEVER save pending logs to localStorage - they're transient
+      // NEVER save pending logs to localStorage
       const logsToSave = newLogs.filter(l => l.type !== 'pending');
       saveToStorage(STORAGE_KEYS.LOGS, logsToSave);
 
       return newLogs;
     });
-  };
+  }, []);
 
   const addTransaction = useCallback((tx: Omit<StoredTransaction, 'timestamp'>) => {
     setTransactions((prev) => {
