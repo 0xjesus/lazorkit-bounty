@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.3.0-" + Date.now();
+const BUILD_VERSION = "v1.3.1-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -546,7 +546,12 @@ function WalletDemo() {
     try {
       console.log('=== SEND TRANSACTION START ===');
       const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: smartWalletPubkey, lamports: 100 });
-      const sig = await signAndSendTransaction({ instructions: [instruction] });
+      const sig = await signAndSendTransaction({
+        instructions: [instruction],
+        transactionOptions: {
+          computeUnitLimit: 100_000,
+        }
+      });
       console.log('=== SEND TRANSACTION RESULT ===', sig);
       setLastSignature(sig);
       addLog('success', 'Transaction confirmed!');
@@ -590,7 +595,12 @@ function WalletDemo() {
       console.log('=== SUBSCRIBE START ===', planId);
       const lamports = Math.floor(plan.price * LAMPORTS_PER_SOL);
       const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: smartWalletPubkey, lamports });
-      const sig = await signAndSendTransaction({ instructions: [instruction] });
+      const sig = await signAndSendTransaction({
+        instructions: [instruction],
+        transactionOptions: {
+          computeUnitLimit: 100_000,
+        }
+      });
       console.log('=== SUBSCRIBE RESULT ===', sig);
       setLastSignature(sig);
       addLog('success', `Subscribed to ${plan.name}!`);
