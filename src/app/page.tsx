@@ -645,7 +645,7 @@ function WalletDemo() {
                         <p className={log.type === 'success' ? 'text-emerald-300' : log.type === 'error' ? 'text-red-300' : log.type === 'pending' ? 'text-amber-300' : 'text-zinc-400'}>{log.message}</p>
                         {log.details && <p className="text-xs text-zinc-600 mt-0.5 truncate">{log.details}</p>}
                       </div>
-                      <span className="text-xs text-zinc-600">{log.timestamp.toLocaleTimeString()}</span>
+                      <span className="text-xs text-zinc-600">{new Date(log.timestamp).toLocaleTimeString()}</span>
                     </div>
                   ))
                 )}
