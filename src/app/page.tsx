@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.0.9-" + Date.now();
+const BUILD_VERSION = "v1.1.0-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -260,15 +260,21 @@ function WalletDemo() {
       details
     };
 
-    console.log('%c📝 ADDING LOG:', 'color: #8b5cf6; font-weight: bold', {
-      type,
-      message,
-      id: logId.slice(0, 8),
-    });
+    console.log('%c📝 ADDING LOG:', 'color: #8b5cf6; font-weight: bold', { type, message });
 
     setLogs((prev) => {
-      const newLogs = [logEntry, ...prev].slice(0, 30);
-      console.log('%c📋 LOGS UPDATED:', 'color: #22c55e', 'count:', newLogs.length, 'latest:', newLogs[0]?.message);
+      let newLogs: LogEntry[];
+
+      // If adding success or error, remove any pending logs (they're now resolved)
+      if (type === 'success' || type === 'error') {
+        const withoutPending = prev.filter(log => log.type !== 'pending');
+        newLogs = [logEntry, ...withoutPending].slice(0, 30);
+        console.log('%c✅ Replaced pending logs with result:', 'color: #22c55e', type);
+      } else {
+        newLogs = [logEntry, ...prev].slice(0, 30);
+      }
+
+      console.log('%c📋 LOGS STATE:', 'color: #22c55e', newLogs.map(l => `[${l.type}] ${l.message}`));
       saveToStorage(STORAGE_KEYS.LOGS, newLogs);
       return newLogs;
     });
