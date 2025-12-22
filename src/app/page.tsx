@@ -240,14 +240,29 @@ function WalletDemo() {
     console.log('%c═══════════════════════════════════════════════════════════════', 'color: #8b5cf6; font-weight: bold');
   }, [isConnected, smartWalletAddress, balance, isConnecting, sdkSigning, isSigning, isSending, isAirdropping, isSubscribing, selectedPlan]);
 
-  const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
-    console.log(`📝 Log [${type}]:`, message, details || '');
+  const addLog = (type: LogEntry['type'], message: string, details?: string) => {
+    const logId = crypto.randomUUID();
+    const logEntry: LogEntry = {
+      id: logId,
+      timestamp: new Date(),
+      type,
+      message,
+      details
+    };
+
+    console.log('%c📝 ADDING LOG:', 'color: #8b5cf6; font-weight: bold', {
+      type,
+      message,
+      id: logId.slice(0, 8),
+    });
+
     setLogs((prev) => {
-      const newLogs = [{ id: crypto.randomUUID(), timestamp: new Date(), type, message, details }, ...prev].slice(0, 30);
+      const newLogs = [logEntry, ...prev].slice(0, 30);
+      console.log('%c📋 LOGS UPDATED:', 'color: #22c55e', 'count:', newLogs.length, 'latest:', newLogs[0]?.message);
       saveToStorage(STORAGE_KEYS.LOGS, newLogs);
       return newLogs;
     });
-  }, []);
+  };
 
   const addTransaction = useCallback((tx: Omit<StoredTransaction, 'timestamp'>) => {
     setTransactions((prev) => {
@@ -285,7 +300,12 @@ function WalletDemo() {
     console.log('========================================');
     console.log('Step 1: Checking connect function exists:', typeof connect);
 
+    // Clear old logs to start fresh
+    console.log('%c🧹 Clearing old logs before connect...', 'color: #f59e0b');
+    setLogs([]);
+
     addLog('pending', 'Opening passkey authentication...');
+    console.log('%c🔍 Current logs state after addLog:', 'color: #06b6d4', logs);
 
     try {
       console.log('Step 2: About to call connect()...');
@@ -738,6 +758,8 @@ function WalletDemo() {
             </div>
             {showLog && (
               <div className="h-[320px] overflow-y-auto p-4 space-y-2">
+                {/* Debug: Log what we're rendering */}
+                {console.log('%c🖼️ RENDERING LOGS:', 'color: #ec4899; font-weight: bold', 'count:', logs.length, 'logs:', logs.map(l => l.message))}
                 {logs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-zinc-600">
                     <Play className="h-8 w-8 mb-2 opacity-50" />
