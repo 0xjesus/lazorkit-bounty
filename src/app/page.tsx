@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.3.1-" + Date.now();
+const BUILD_VERSION = "v1.3.2-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -549,7 +549,8 @@ function WalletDemo() {
       const sig = await signAndSendTransaction({
         instructions: [instruction],
         transactionOptions: {
-          computeUnitLimit: 100_000,
+          computeUnitLimit: 200_000,
+          clusterSimulation: 'devnet',
         }
       });
       console.log('=== SEND TRANSACTION RESULT ===', sig);
@@ -598,7 +599,8 @@ function WalletDemo() {
       const sig = await signAndSendTransaction({
         instructions: [instruction],
         transactionOptions: {
-          computeUnitLimit: 100_000,
+          computeUnitLimit: 200_000,
+          clusterSimulation: 'devnet',
         }
       });
       console.log('=== SUBSCRIBE RESULT ===', sig);
