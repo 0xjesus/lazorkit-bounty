@@ -188,42 +188,47 @@ function WalletDemo() {
   const isSigningRef = useRef(false);
   const isSendingRef = useRef(false);
   const isSubscribingRef = useRef(false);
+  const isAirdropRef = useRef(false);
 
   const { wallet, isConnecting, isSigning: sdkSigning, connect, disconnect, signAndSendTransaction, signMessage } = useWallet();
-
-  // Debug: Log wallet hook state
-  console.log('🔍 useWallet() state:', {
-    wallet,
-    isConnecting,
-    sdkSigning,
-    hasConnect: typeof connect === 'function',
-    hasDisconnect: typeof disconnect === 'function',
-    hasSignAndSendTransaction: typeof signAndSendTransaction === 'function',
-    hasSignMessage: typeof signMessage === 'function',
-  });
 
   const isConnected = !!wallet?.smartWallet;
   const smartWalletAddress = wallet?.smartWallet || null;
   const smartWalletPubkey = smartWalletAddress ? new PublicKey(smartWalletAddress) : null;
 
-  console.log('🔐 Connection state:', { isConnected, smartWalletAddress });
-
-  // Log wallet changes
+  // =============================================================================
+  // COMPREHENSIVE UI STATE LOGGING
+  // =============================================================================
   useEffect(() => {
-    console.log('========================================');
-    console.log('👛 WALLET STATE CHANGED');
-    console.log('========================================');
-    console.log('wallet:', wallet);
-    console.log('isConnecting:', isConnecting);
-    console.log('sdkSigning:', sdkSigning);
-    if (wallet) {
-      console.log('Wallet details:');
-      console.log('  - smartWallet:', wallet.smartWallet);
-      console.log('  - credentialId:', wallet.credentialId);
-      console.log('  - platform:', wallet.platform);
-    }
-    console.log('========================================');
-  }, [wallet, isConnecting, sdkSigning]);
+    console.log('%c═══════════════════════════════════════════════════════════════', 'color: #8b5cf6; font-weight: bold');
+    console.log('%c🎨 UI STATE UPDATE', 'color: #8b5cf6; font-size: 16px; font-weight: bold');
+    console.log('%c═══════════════════════════════════════════════════════════════', 'color: #8b5cf6; font-weight: bold');
+
+    console.log('%c📊 WALLET STATE:', 'color: #22c55e; font-weight: bold');
+    console.log('   isConnected:', isConnected);
+    console.log('   smartWalletAddress:', smartWalletAddress || '(not connected)');
+    console.log('   balance:', balance, 'lamports (', (balance / LAMPORTS_PER_SOL).toFixed(4), 'SOL)');
+
+    console.log('%c🔄 SDK STATE:', 'color: #3b82f6; font-weight: bold');
+    console.log('   isConnecting:', isConnecting);
+    console.log('   sdkSigning:', sdkSigning);
+
+    console.log('%c🖱️ BUTTON STATES:', 'color: #f59e0b; font-weight: bold');
+    console.log('   isSigning:', isSigning, '| ref:', isSigningRef.current);
+    console.log('   isSending:', isSending, '| ref:', isSendingRef.current);
+    console.log('   isAirdropping:', isAirdropping, '| ref:', isAirdropRef.current);
+    console.log('   isSubscribing:', isSubscribing, '| ref:', isSubscribingRef.current);
+    console.log('   selectedPlan:', selectedPlan);
+
+    console.log('%c🔘 BUTTON ENABLED/DISABLED:', 'color: #ec4899; font-weight: bold');
+    console.log('   Connect btn disabled:', isConnecting);
+    console.log('   Airdrop btn disabled:', !isConnected || isAirdropping);
+    console.log('   Sign btn disabled:', !isConnected || isSigning || sdkSigning);
+    console.log('   Send btn disabled:', !isConnected || isSending || sdkSigning);
+    console.log('   Subscribe btns disabled:', !isConnected || isSubscribing);
+
+    console.log('%c═══════════════════════════════════════════════════════════════', 'color: #8b5cf6; font-weight: bold');
+  }, [isConnected, smartWalletAddress, balance, isConnecting, sdkSigning, isSigning, isSending, isAirdropping, isSubscribing, selectedPlan]);
 
   const addLog = useCallback((type: LogEntry['type'], message: string, details?: string) => {
     console.log(`📝 Log [${type}]:`, message, details || '');
@@ -346,37 +351,67 @@ function WalletDemo() {
   };
 
   const handleAirdrop = async () => {
-    if (!smartWalletPubkey) return;
+    console.log('%c🪂 AIRDROP CLICKED', 'color: #f59e0b; font-size: 14px; font-weight: bold');
+    console.log('   smartWalletPubkey:', smartWalletPubkey?.toBase58() || 'null');
+    console.log('   isAirdropRef.current:', isAirdropRef.current);
+    console.log('   isAirdropping state:', isAirdropping);
+
+    // Prevent double-clicks
+    if (!smartWalletPubkey || isAirdropRef.current) {
+      console.log('%c🚫 AIRDROP BLOCKED', 'color: #ef4444; font-weight: bold');
+      console.log('   Reason:', !smartWalletPubkey ? 'No wallet connected' : 'Already airdropping (ref locked)');
+      return;
+    }
+
+    // Lock immediately
+    isAirdropRef.current = true;
     setIsAirdropping(true);
+    console.log('%c🔒 AIRDROP LOCKED - Starting...', 'color: #22c55e; font-weight: bold');
+
     addLog('pending', 'Requesting 1 SOL airdrop from devnet...');
+
     try {
-      console.log('🪂 Requesting airdrop for:', smartWalletPubkey.toBase58());
+      console.log('🪂 Step 1: Calling requestAirdrop...');
+      console.log('   Address:', smartWalletPubkey.toBase58());
+      console.log('   Amount:', LAMPORTS_PER_SOL, 'lamports (1 SOL)');
+
       const sig = await connection.requestAirdrop(smartWalletPubkey, LAMPORTS_PER_SOL);
-      console.log('🪂 Airdrop signature:', sig);
+
+      console.log('🪂 Step 2: Got signature:', sig);
       addLog('info', `Airdrop TX: ${sig.slice(0, 12)}...`);
 
+      console.log('🪂 Step 3: Confirming transaction...');
       await connection.confirmTransaction(sig, 'confirmed');
-      console.log('🪂 Airdrop confirmed!');
 
+      console.log('%c🪂 Step 4: AIRDROP SUCCESS!', 'color: #22c55e; font-size: 14px; font-weight: bold');
       addLog('success', '+1 SOL airdropped!');
       addTransaction({ signature: sig, type: 'airdrop', status: 'success', details: '1 SOL from devnet faucet' });
 
+      console.log('🪂 Step 5: Fetching new balance...');
       const newBal = await connection.getBalance(smartWalletPubkey);
+      console.log('   New balance:', newBal, 'lamports (', (newBal / LAMPORTS_PER_SOL).toFixed(4), 'SOL)');
+
       setBalance(newBal);
       setLastSignature(sig);
     } catch (err) {
-      console.error('🪂 Airdrop failed:', err);
+      console.log('%c🪂 AIRDROP FAILED', 'color: #ef4444; font-size: 14px; font-weight: bold');
+      console.error('   Error:', err);
       const errorMsg = (err as Error).message;
 
       // Check for rate limit error
       if (errorMsg.includes('429') || errorMsg.includes('limit')) {
+        console.log('   Reason: Rate limited by devnet faucet');
         addLog('error', 'Rate limited! Use faucet.solana.com instead');
       } else {
         addLog('error', 'Airdrop failed', errorMsg);
       }
       addTransaction({ signature: '', type: 'airdrop', status: 'failed', details: errorMsg });
     } finally {
-      setIsAirdropping(false);
+      console.log('%c🔓 AIRDROP UNLOCKED', 'color: #8b5cf6; font-weight: bold');
+      setTimeout(() => {
+        isAirdropRef.current = false;
+        setIsAirdropping(false);
+      }, 500);
     }
   };
 
@@ -593,12 +628,16 @@ function WalletDemo() {
                   </div>
                   {/* AIRDROP BUTTON - Big and visible! */}
                   <button
-                    onClick={handleAirdrop}
+                    onClick={() => {
+                      console.log('%c🖱️ AIRDROP BUTTON CLICKED!', 'color: #f59e0b; font-size: 16px; font-weight: bold');
+                      console.log('   Button disabled?', isAirdropping || isAirdropRef.current);
+                      handleAirdrop();
+                    }}
                     disabled={isAirdropping}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black text-sm font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-black text-base font-bold hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-500/25 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3 transition-all animate-pulse"
                   >
-                    {isAirdropping ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
-                    {isAirdropping ? 'Airdropping...' : 'Get 1 SOL (Devnet)'}
+                    {isAirdropping ? <Loader2 className="h-5 w-5 animate-spin" /> : <Coins className="h-5 w-5" />}
+                    {isAirdropping ? 'Requesting Airdrop...' : '🚀 Get FREE 1 SOL (Devnet)'}
                   </button>
                   {/* Alternative faucet link */}
                   <a
@@ -625,7 +664,14 @@ function WalletDemo() {
               </div>
               <p className="text-xs text-zinc-500 mb-3">Prove wallet ownership without a transaction</p>
               <button
-                onClick={handleSignMessage}
+                onClick={() => {
+                  console.log('%c🖱️ SIGN MESSAGE BUTTON CLICKED!', 'color: #06b6d4; font-size: 16px; font-weight: bold');
+                  console.log('   isConnected:', isConnected);
+                  console.log('   isSigning:', isSigning);
+                  console.log('   sdkSigning:', sdkSigning);
+                  console.log('   Button disabled?', !isConnected || isSigning || sdkSigning);
+                  handleSignMessage();
+                }}
                 disabled={!isConnected || isSigning || sdkSigning}
                 className="w-full py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -642,7 +688,15 @@ function WalletDemo() {
               </div>
               <p className="text-xs text-zinc-500 mb-3">Send a transaction - Paymaster pays all fees!</p>
               <button
-                onClick={handleSendTransaction}
+                onClick={() => {
+                  console.log('%c🖱️ SEND TRANSACTION BUTTON CLICKED!', 'color: #22c55e; font-size: 16px; font-weight: bold');
+                  console.log('   isConnected:', isConnected);
+                  console.log('   isSending:', isSending);
+                  console.log('   sdkSigning:', sdkSigning);
+                  console.log('   balance:', balance, '(need > 0 for tx)');
+                  console.log('   Button disabled?', !isConnected || isSending || sdkSigning);
+                  handleSendTransaction();
+                }}
                 disabled={!isConnected || isSending || sdkSigning}
                 className="w-full py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
