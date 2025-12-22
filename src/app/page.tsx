@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.1.0-" + Date.now();
+const BUILD_VERSION = "v1.2.0-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -250,6 +250,18 @@ function WalletDemo() {
     }
   }, [logs]);
 
+  // Clear all pending logs - call this when an operation completes
+  const clearPendingLogs = () => {
+    console.log('%c🧹 CLEARING ALL PENDING LOGS', 'color: #f59e0b; font-weight: bold; font-size: 14px');
+    setLogs((prev) => {
+      const filtered = prev.filter(log => log.type !== 'pending');
+      console.log('%c   Removed', 'color: #f59e0b', prev.length - filtered.length, 'pending logs');
+      // Save filtered logs (without pending) to localStorage
+      saveToStorage(STORAGE_KEYS.LOGS, filtered);
+      return filtered;
+    });
+  };
+
   const addLog = (type: LogEntry['type'], message: string, details?: string) => {
     const logId = crypto.randomUUID();
     const logEntry: LogEntry = {
@@ -260,22 +272,28 @@ function WalletDemo() {
       details
     };
 
-    console.log('%c📝 ADDING LOG:', 'color: #8b5cf6; font-weight: bold', { type, message });
+    console.log('%c📝 ADDING LOG:', 'color: #8b5cf6; font-weight: bold; font-size: 14px', { type, message });
 
     setLogs((prev) => {
+      console.log('%c   Previous logs:', 'color: #8b5cf6', prev.length, prev.map(l => l.type));
+
       let newLogs: LogEntry[];
 
-      // If adding success or error, remove any pending logs (they're now resolved)
+      // If adding success or error, REMOVE all pending logs first
       if (type === 'success' || type === 'error') {
         const withoutPending = prev.filter(log => log.type !== 'pending');
+        console.log('%c   ✅ Filtering out pending logs:', 'color: #22c55e', prev.length - withoutPending.length, 'removed');
         newLogs = [logEntry, ...withoutPending].slice(0, 30);
-        console.log('%c✅ Replaced pending logs with result:', 'color: #22c55e', type);
       } else {
         newLogs = [logEntry, ...prev].slice(0, 30);
       }
 
-      console.log('%c📋 LOGS STATE:', 'color: #22c55e', newLogs.map(l => `[${l.type}] ${l.message}`));
-      saveToStorage(STORAGE_KEYS.LOGS, newLogs);
+      console.log('%c   New logs:', 'color: #22c55e', newLogs.length, newLogs.map(l => `[${l.type}] ${l.message.slice(0, 30)}`));
+
+      // NEVER save pending logs to localStorage - they're transient
+      const logsToSave = newLogs.filter(l => l.type !== 'pending');
+      saveToStorage(STORAGE_KEYS.LOGS, logsToSave);
+
       return newLogs;
     });
   };
@@ -386,6 +404,10 @@ function WalletDemo() {
 
       addLog('error', 'Connection failed', (err as Error).message);
       console.log('========================================');
+    } finally {
+      // ALWAYS clear pending logs after connect attempt
+      console.log('%c🏁 handleConnect FINALLY block - clearing pending logs', 'color: #f59e0b; font-weight: bold');
+      clearPendingLogs();
     }
   };
 
@@ -454,6 +476,7 @@ function WalletDemo() {
       addTransaction({ signature: '', type: 'airdrop', status: 'failed', details: errorMsg });
     } finally {
       console.log('%c🔓 AIRDROP UNLOCKED', 'color: #8b5cf6; font-weight: bold');
+      clearPendingLogs();
       setTimeout(() => {
         isAirdropRef.current = false;
         setIsAirdropping(false);
@@ -485,6 +508,7 @@ function WalletDemo() {
       console.error('=== SIGN MESSAGE ERROR ===', err);
       addLog('error', 'Signing failed', (err as Error).message);
     } finally {
+      clearPendingLogs();
       // Unlock after a small delay to prevent immediate re-trigger
       setTimeout(() => {
         isSigningRef.current = false;
@@ -523,6 +547,7 @@ function WalletDemo() {
       addLog('error', 'Transaction failed', (err as Error).message);
       addTransaction({ signature: '', type: 'transfer', status: 'failed', details: (err as Error).message });
     } finally {
+      clearPendingLogs();
       // Unlock after a small delay to prevent immediate re-trigger
       setTimeout(() => {
         isSendingRef.current = false;
@@ -565,6 +590,7 @@ function WalletDemo() {
       addLog('error', 'Subscription failed', (err as Error).message);
       addTransaction({ signature: '', type: 'subscription', status: 'failed', details: (err as Error).message });
     } finally {
+      clearPendingLogs();
       // Unlock after a small delay to prevent immediate re-trigger
       setTimeout(() => {
         isSubscribingRef.current = false;
