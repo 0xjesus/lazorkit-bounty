@@ -12,6 +12,16 @@
 
 "use client";
 
+// =============================================================================
+// VERSION CHECK - This should appear FIRST in console
+// =============================================================================
+const BUILD_VERSION = "v1.0.7-" + Date.now();
+console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
+console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
+console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
+console.log('%c║  Time: ' + new Date().toISOString().padEnd(53) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
+console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #22c55e; font-weight: bold; font-size: 14px');
+
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useEffect, useState, useCallback, useRef } from "react";
