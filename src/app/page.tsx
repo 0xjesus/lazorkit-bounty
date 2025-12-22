@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.0.7-" + Date.now();
+const BUILD_VERSION = "v1.0.9-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -239,6 +239,16 @@ function WalletDemo() {
 
     console.log('%c═══════════════════════════════════════════════════════════════', 'color: #8b5cf6; font-weight: bold');
   }, [isConnected, smartWalletAddress, balance, isConnecting, sdkSigning, isSigning, isSending, isAirdropping, isSubscribing, selectedPlan]);
+
+  // Debug: Log when logs array changes
+  useEffect(() => {
+    console.log('%c🖼️ LOGS STATE CHANGED:', 'color: #ec4899; font-weight: bold; font-size: 14px');
+    console.log('   Total logs:', logs.length);
+    if (logs.length > 0) {
+      console.log('   Latest log:', logs[0].type, '-', logs[0].message);
+      console.log('   All messages:', logs.map(l => `[${l.type}] ${l.message}`));
+    }
+  }, [logs]);
 
   const addLog = (type: LogEntry['type'], message: string, details?: string) => {
     const logId = crypto.randomUUID();
@@ -758,8 +768,6 @@ function WalletDemo() {
             </div>
             {showLog && (
               <div className="h-[320px] overflow-y-auto p-4 space-y-2">
-                {/* Debug: Log what we're rendering */}
-                {console.log('%c🖼️ RENDERING LOGS:', 'color: #ec4899; font-weight: bold', 'count:', logs.length, 'logs:', logs.map(l => l.message))}
                 {logs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-zinc-600">
                     <Play className="h-8 w-8 mb-2 opacity-50" />
