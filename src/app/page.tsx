@@ -14,7 +14,7 @@
 
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Fingerprint, Send, LogOut, Loader2, CheckCircle2, ExternalLink,
   FileSignature, Copy, Check, Terminal, Clock, XCircle, Zap, Shield,
@@ -183,6 +183,11 @@ function WalletDemo() {
   const [lastSignature, setLastSignature] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+
+  // Refs to prevent double-clicks and race conditions
+  const isSigningRef = useRef(false);
+  const isSendingRef = useRef(false);
+  const isSubscribingRef = useRef(false);
 
   const { wallet, isConnecting, isSigning: sdkSigning, connect, disconnect, signAndSendTransaction, signMessage } = useWallet();
 
@@ -376,27 +381,54 @@ function WalletDemo() {
   };
 
   const handleSignMessage = async () => {
-    if (!isConnected || !signMessage) return;
+    // Prevent double-clicks with ref check
+    if (!isConnected || !signMessage || isSigningRef.current) {
+      console.log('handleSignMessage blocked:', { isConnected, hasSignMessage: !!signMessage, isSigningRef: isSigningRef.current });
+      return;
+    }
+
+    // Lock immediately with ref (sync, before any async)
+    isSigningRef.current = true;
     setIsSigning(true);
     addLog('pending', 'Requesting signature...');
+
     try {
-      const result = await signMessage('Hello from LazorKit!');
+      console.log('=== SIGN MESSAGE START ===');
+      const result = await signMessage('Hello from LazorKit Playground!');
+      console.log('=== SIGN MESSAGE RESULT ===', result);
       addLog('success', 'Message signed!');
-      addLog('info', `Sig: ${result.signature.slice(0, 16)}...`);
+      if (result?.signature) {
+        addLog('info', `Sig: ${result.signature.slice(0, 16)}...`);
+      }
     } catch (err) {
+      console.error('=== SIGN MESSAGE ERROR ===', err);
       addLog('error', 'Signing failed', (err as Error).message);
     } finally {
-      setIsSigning(false);
+      // Unlock after a small delay to prevent immediate re-trigger
+      setTimeout(() => {
+        isSigningRef.current = false;
+        setIsSigning(false);
+      }, 500);
     }
   };
 
   const handleSendTransaction = async () => {
-    if (!smartWalletPubkey || !signAndSendTransaction) return;
+    // Prevent double-clicks with ref check
+    if (!smartWalletPubkey || !signAndSendTransaction || isSendingRef.current) {
+      console.log('handleSendTransaction blocked:', { hasWallet: !!smartWalletPubkey, hasSignAndSend: !!signAndSendTransaction, isSendingRef: isSendingRef.current });
+      return;
+    }
+
+    // Lock immediately with ref (sync, before any async)
+    isSendingRef.current = true;
     setIsSending(true);
     addLog('pending', 'Sending gasless transaction...');
+
     try {
+      console.log('=== SEND TRANSACTION START ===');
       const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: smartWalletPubkey, lamports: 100 });
       const sig = await signAndSendTransaction({ instructions: [instruction] });
+      console.log('=== SEND TRANSACTION RESULT ===', sig);
       setLastSignature(sig);
       addLog('success', 'Transaction confirmed!');
       addLog('info', `TX: ${sig.slice(0, 12)}...`, sig);
@@ -406,24 +438,40 @@ function WalletDemo() {
       const newBal = await connection.getBalance(smartWalletPubkey);
       setBalance(newBal);
     } catch (err) {
+      console.error('=== SEND TRANSACTION ERROR ===', err);
       addLog('error', 'Transaction failed', (err as Error).message);
       addTransaction({ signature: '', type: 'transfer', status: 'failed', details: (err as Error).message });
     } finally {
-      setIsSending(false);
+      // Unlock after a small delay to prevent immediate re-trigger
+      setTimeout(() => {
+        isSendingRef.current = false;
+        setIsSending(false);
+      }, 500);
     }
   };
 
   const handleSubscribe = async (planId: string) => {
-    if (!smartWalletPubkey || !signAndSendTransaction) return;
+    // Prevent double-clicks with ref check
+    if (!smartWalletPubkey || !signAndSendTransaction || isSubscribingRef.current) {
+      console.log('handleSubscribe blocked:', { hasWallet: !!smartWalletPubkey, hasSignAndSend: !!signAndSendTransaction, isSubscribingRef: isSubscribingRef.current });
+      return;
+    }
+
     const plan = PLANS.find(p => p.id === planId);
     if (!plan) return;
+
+    // Lock immediately with ref (sync, before any async)
+    isSubscribingRef.current = true;
     setSelectedPlan(planId);
     setIsSubscribing(true);
     addLog('pending', `Subscribing to ${plan.name}...`);
+
     try {
+      console.log('=== SUBSCRIBE START ===', planId);
       const lamports = Math.floor(plan.price * LAMPORTS_PER_SOL);
       const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: smartWalletPubkey, lamports });
       const sig = await signAndSendTransaction({ instructions: [instruction] });
+      console.log('=== SUBSCRIBE RESULT ===', sig);
       setLastSignature(sig);
       addLog('success', `Subscribed to ${plan.name}!`);
       addTransaction({ signature: sig, type: 'subscription', status: 'success', details: `${plan.name} - ${plan.priceDisplay}` });
@@ -432,11 +480,16 @@ function WalletDemo() {
       const newBal = await connection.getBalance(smartWalletPubkey);
       setBalance(newBal);
     } catch (err) {
+      console.error('=== SUBSCRIBE ERROR ===', err);
       addLog('error', 'Subscription failed', (err as Error).message);
       addTransaction({ signature: '', type: 'subscription', status: 'failed', details: (err as Error).message });
     } finally {
-      setIsSubscribing(false);
-      setSelectedPlan(null);
+      // Unlock after a small delay to prevent immediate re-trigger
+      setTimeout(() => {
+        isSubscribingRef.current = false;
+        setIsSubscribing(false);
+        setSelectedPlan(null);
+      }, 500);
     }
   };
 
