@@ -22,24 +22,13 @@ console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e
 console.log('%c║  Time: ' + new Date().toISOString().padEnd(53) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #22c55e; font-weight: bold; font-size: 14px');
 
-import {
-  LazorkitProvider,
-  useWallet,
-  LazorkitClient,
-  Paymaster,
-  DialogManager,
-  credentialHashFromBase64,
-  getBlockchainTimestamp,
-  SmartWalletAction,
-  buildPasskeyVerificationInstruction,
-} from "@lazorkit/wallet";
-import * as anchor from "@coral-xyz/anchor";
+import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Fingerprint, Send, LogOut, Loader2, CheckCircle2, ExternalLink,
   FileSignature, Copy, Check, Terminal, Clock, XCircle, Zap, Shield,
-  Sparkles, ArrowRight, Github, BookOpen, CreditCard, Code, Coins,
+  Sparkles, ArrowRight, Github, BookOpen, CreditCard, Coins,
   ChevronDown, ChevronUp, Wallet, Play, Trash2
 } from 'lucide-react';
 
@@ -694,176 +683,6 @@ function WalletDemo() {
     }
   };
 
-  // =============================================================================
-  // MANUAL TRANSACTION - Build everything step by step for debugging
-  // =============================================================================
-  const handleManualTransaction = async () => {
-    if (!wallet || !smartWalletPubkey) {
-      console.log('No wallet connected');
-      return;
-    }
-
-    console.log('%c════════════════════════════════════════════════════════════', 'color: #ec4899; font-weight: bold');
-    console.log('%c🔬 MANUAL TRANSACTION - STEP BY STEP', 'color: #ec4899; font-size: 18px; font-weight: bold');
-    console.log('%c════════════════════════════════════════════════════════════', 'color: #ec4899; font-weight: bold');
-
-    addLog('pending', 'Manual transaction building...');
-
-    try {
-      // Step 1: Create clients
-      console.log('%c\n📦 STEP 1: Creating clients...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const lazorkitClient = new LazorkitClient(connection);
-      const paymaster = new Paymaster({ paymasterUrl: CONFIG.PAYMASTER_URL });
-      console.log('   ✅ LazorkitClient created');
-      console.log('   ✅ Paymaster created');
-
-      // Step 2: Get payer from paymaster
-      console.log('%c\n💰 STEP 2: Getting payer from paymaster...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const payer = await paymaster.getPayer();
-      console.log('   ✅ Payer:', payer.toBase58());
-
-      // Step 3: Get blockchain timestamp
-      console.log('%c\n⏰ STEP 3: Getting blockchain timestamp...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const timestamp = await getBlockchainTimestamp(connection);
-      console.log('   ✅ Timestamp:', timestamp.toString());
-
-      // Step 4: Prepare wallet data
-      console.log('%c\n🔑 STEP 4: Preparing wallet data...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const credentialHash = credentialHashFromBase64(wallet.credentialId);
-      console.log('   credentialId:', wallet.credentialId);
-      console.log('   credentialHash:', credentialHash);
-      console.log('   credentialHash length:', credentialHash.length, '(should be 32)');
-      console.log('   passkeyPubkey:', wallet.passkeyPubkey);
-      console.log('   passkeyPubkey length:', wallet.passkeyPubkey?.length, '(should be 33)');
-      console.log('   smartWallet:', wallet.smartWallet);
-
-      // Step 5: Create the instruction
-      console.log('%c\n📝 STEP 5: Creating transfer instruction...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const instruction = SystemProgram.transfer({
-        fromPubkey: smartWalletPubkey,
-        toPubkey: smartWalletPubkey,
-        lamports: 100,
-      });
-      console.log('   ✅ Instruction created');
-      console.log('   programId:', instruction.programId.toBase58());
-
-      // Step 6: Build authorization message
-      console.log('%c\n📜 STEP 6: Building authorization message...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const authMessage = await lazorkitClient.buildAuthorizationMessage({
-        action: {
-          type: SmartWalletAction.CreateChunk,
-          args: {
-            cpiInstructions: [instruction],
-          },
-        },
-        payer: payer,
-        smartWallet: smartWalletPubkey,
-        passkeyPublicKey: wallet.passkeyPubkey,
-        credentialHash: credentialHash,
-        timestamp: timestamp,
-      });
-      console.log('   ✅ Auth message built');
-      console.log('   Message length:', authMessage.length, 'bytes');
-      console.log('   Message (hex):', Buffer.from(authMessage).toString('hex').slice(0, 100) + '...');
-
-      // Step 7: Encode message for portal
-      console.log('%c\n🔐 STEP 7: Encoding message for portal...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const messageBase64Url = Buffer.from(authMessage)
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-      console.log('   ✅ Base64URL encoded');
-      console.log('   Encoded length:', messageBase64Url.length);
-
-      // Step 8: Build dummy transaction for portal
-      console.log('%c\n🏗️ STEP 8: Building transaction for portal...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const { blockhash } = await connection.getLatestBlockhash();
-      const txMessage = new anchor.web3.TransactionMessage({
-        payerKey: payer,
-        recentBlockhash: blockhash,
-        instructions: [instruction],
-      }).compileToV0Message();
-      const dummyTx = new anchor.web3.VersionedTransaction(txMessage);
-      const txBase64 = Buffer.from(dummyTx.serialize()).toString('base64');
-      console.log('   ✅ Transaction serialized');
-      console.log('   TX length:', txBase64.length);
-
-      // Step 9: Open portal dialog to sign
-      console.log('%c\n✍️ STEP 9: Opening portal to sign...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      const dialogManager = new DialogManager({
-        portalUrl: CONFIG.PORTAL_URL,
-        rpcUrl: CONFIG.RPC_URL,
-        paymasterUrl: CONFIG.PAYMASTER_URL,
-      });
-
-      console.log('   Calling dialogManager.openSign()...');
-      console.log('   Message:', messageBase64Url.slice(0, 50) + '...');
-      console.log('   CredentialId:', wallet.credentialId.slice(0, 30) + '...');
-
-      const signResult = await dialogManager.openSign(
-        messageBase64Url,
-        txBase64,
-        wallet.credentialId,
-        'devnet'
-      );
-
-      console.log('%c\n✅ STEP 9 COMPLETE - Got signature!', 'color: #22c55e; font-weight: bold; font-size: 14px');
-      console.log('   signature:', signResult.signature?.slice(0, 50) + '...');
-      console.log('   clientDataJsonBase64 length:', signResult.clientDataJsonBase64?.length);
-      console.log('   authenticatorDataBase64 length:', signResult.authenticatorDataBase64?.length);
-
-      // Step 10: Build createChunk transaction
-      console.log('%c\n🔨 STEP 10: Building createChunk transaction...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-
-      const passkeySignature = {
-        passkeyPublicKey: wallet.passkeyPubkey as number[] & { readonly __brand: 'PasskeyPublicKey' },
-        signature64: signResult.signature,
-        clientDataJsonRaw64: signResult.clientDataJsonBase64,
-        authenticatorDataRaw64: signResult.authenticatorDataBase64,
-      };
-
-      console.log('   passkeySignature.passkeyPublicKey length:', passkeySignature.passkeyPublicKey.length);
-      console.log('   passkeySignature.signature64 length:', passkeySignature.signature64?.length);
-
-      const createChunkTx = await lazorkitClient.createChunkTxn({
-        payer: payer,
-        smartWallet: smartWalletPubkey,
-        passkeySignature: passkeySignature,
-        cpiInstructions: [instruction],
-        timestamp: timestamp,
-        credentialHash: credentialHash as number[] & { readonly __brand: 'CredentialHash' },
-      });
-
-      console.log('   ✅ createChunkTx built');
-      console.log('   Transaction type:', createChunkTx.constructor.name);
-
-      // Step 11: Send to paymaster
-      console.log('%c\n🚀 STEP 11: Sending to paymaster...', 'color: #3b82f6; font-weight: bold; font-size: 14px');
-      console.log('   This is where error 0x2 occurs...');
-
-      const sig = await paymaster.signAndSend(createChunkTx as anchor.web3.Transaction);
-
-      console.log('%c\n🎉 SUCCESS!', 'color: #22c55e; font-size: 20px; font-weight: bold');
-      console.log('   Signature:', sig);
-
-      addLog('success', 'Manual transaction succeeded!');
-      addLog('info', `TX: ${sig.slice(0, 12)}...`);
-
-      dialogManager.destroy();
-
-    } catch (err) {
-      console.log('%c\n❌ MANUAL TRANSACTION FAILED', 'color: #ef4444; font-size: 16px; font-weight: bold');
-      console.error('Error:', err);
-      console.error('Error message:', (err as Error).message);
-      console.error('Error stack:', (err as Error).stack);
-
-      addLog('error', 'Manual TX failed', (err as Error).message);
-    } finally {
-      clearPendingLogs();
-    }
-  };
-
   const handleSubscribe = async (planId: string) => {
     // Prevent double-clicks with ref check
     if (!smartWalletPubkey || !signAndSendTransaction || isSubscribingRef.current) {
@@ -1076,33 +895,22 @@ function WalletDemo() {
                 <span className="text-sm font-medium">Gasless Transaction</span>
               </div>
               <p className="text-xs text-zinc-500 mb-3">Send a transaction - Paymaster pays all fees!</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    console.log('%c🖱️ SEND TRANSACTION BUTTON CLICKED!', 'color: #22c55e; font-size: 16px; font-weight: bold');
-                    console.log('   isConnected:', isConnected);
-                    console.log('   isSending:', isSending);
-                    console.log('   sdkSigning:', sdkSigning);
-                    console.log('   balance:', balance, '(need > 0 for tx)');
-                    console.log('   Button disabled?', !isConnected || isSending || sdkSigning);
-                    handleSendTransaction();
-                  }}
-                  disabled={!isConnected || isSending || sdkSigning}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {!isConnected ? 'Connect First' : isSending ? 'Sending...' : 'Send TX'}
-                </button>
-                <button
-                  onClick={handleManualTransaction}
-                  disabled={!isConnected || sdkSigning}
-                  className="py-2.5 px-3 rounded-xl bg-pink-500/10 border border-pink-500/30 text-pink-400 text-sm font-medium hover:bg-pink-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  title="Debug: Build transaction manually step-by-step"
-                >
-                  <Code className="h-4 w-4" />
-                  Debug
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  console.log('%c🖱️ SEND TRANSACTION BUTTON CLICKED!', 'color: #22c55e; font-size: 16px; font-weight: bold');
+                  console.log('   isConnected:', isConnected);
+                  console.log('   isSending:', isSending);
+                  console.log('   sdkSigning:', sdkSigning);
+                  console.log('   balance:', balance, '(need > 0 for tx)');
+                  console.log('   Button disabled?', !isConnected || isSending || sdkSigning);
+                  handleSendTransaction();
+                }}
+                disabled={!isConnected || isSending || sdkSigning}
+                className="w-full py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {!isConnected ? 'Connect First' : isSending ? 'Sending...' : 'Send Transaction'}
+              </button>
               {lastSignature && (
                 <a href={`https://explorer.solana.com/tx/${lastSignature}?cluster=devnet`} target="_blank" className="mt-2 flex items-center justify-center gap-1 text-xs text-emerald-400/70 hover:text-emerald-400">
                   View on Explorer <ExternalLink className="h-3 w-3" />
