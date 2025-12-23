@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.3.2-" + Date.now();
+const BUILD_VERSION = "v1.3.3-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -544,8 +544,24 @@ function WalletDemo() {
     addLog('pending', 'Sending gasless transaction...');
 
     try {
-      console.log('=== SEND TRANSACTION START ===');
+      console.log('%c════════════════════════════════════════════════════════════', 'color: #f59e0b; font-weight: bold');
+      console.log('%c💸 SEND TRANSACTION START', 'color: #f59e0b; font-size: 16px; font-weight: bold');
+      console.log('%c════════════════════════════════════════════════════════════', 'color: #f59e0b; font-weight: bold');
+
+      console.log('%c📋 Transaction Details:', 'color: #3b82f6; font-weight: bold');
+      console.log('   From (smartWallet):', smartWalletPubkey.toBase58());
+      console.log('   To (self-transfer):', smartWalletPubkey.toBase58());
+      console.log('   Amount:', 100, 'lamports');
+
+      console.log('%c🔧 Creating instruction...', 'color: #8b5cf6');
       const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: smartWalletPubkey, lamports: 100 });
+      console.log('   Instruction created:', instruction);
+      console.log('   Program ID:', instruction.programId.toBase58());
+      console.log('   Keys:', instruction.keys.map(k => ({ pubkey: k.pubkey.toBase58(), isSigner: k.isSigner, isWritable: k.isWritable })));
+
+      console.log('%c📤 Calling signAndSendTransaction...', 'color: #22c55e; font-weight: bold');
+      console.log('   Options:', { computeUnitLimit: 200_000, clusterSimulation: 'devnet' });
+
       const sig = await signAndSendTransaction({
         instructions: [instruction],
         transactionOptions: {
@@ -553,7 +569,9 @@ function WalletDemo() {
           clusterSimulation: 'devnet',
         }
       });
-      console.log('=== SEND TRANSACTION RESULT ===', sig);
+
+      console.log('%c✅ TRANSACTION SUCCESS!', 'color: #22c55e; font-size: 16px; font-weight: bold');
+      console.log('   Signature:', sig);
       setLastSignature(sig);
       addLog('success', 'Transaction confirmed!');
       addLog('info', `TX: ${sig.slice(0, 12)}...`, sig);
@@ -563,7 +581,28 @@ function WalletDemo() {
       const newBal = await connection.getBalance(smartWalletPubkey);
       setBalance(newBal);
     } catch (err) {
-      console.error('=== SEND TRANSACTION ERROR ===', err);
+      console.log('%c════════════════════════════════════════════════════════════', 'color: #ef4444; font-weight: bold');
+      console.log('%c❌ TRANSACTION FAILED', 'color: #ef4444; font-size: 16px; font-weight: bold');
+      console.log('%c════════════════════════════════════════════════════════════', 'color: #ef4444; font-weight: bold');
+      console.error('Error object:', err);
+      console.error('Error type:', typeof err);
+      console.error('Error name:', (err as Error)?.name);
+      console.error('Error message:', (err as Error)?.message);
+      console.error('Error stack:', (err as Error)?.stack);
+
+      // Try to extract more info from the error
+      const errorObj = err as any;
+      if (errorObj?.logs) {
+        console.error('%c📜 Transaction Logs:', 'color: #ef4444; font-weight: bold');
+        errorObj.logs.forEach((log: string, i: number) => console.error(`   ${i}: ${log}`));
+      }
+      if (errorObj?.error) {
+        console.error('Inner error:', errorObj.error);
+      }
+      if (errorObj?.code) {
+        console.error('Error code:', errorObj.code);
+      }
+
       addLog('error', 'Transaction failed', (err as Error).message);
       addTransaction({ signature: '', type: 'transfer', status: 'failed', details: (err as Error).message });
     } finally {
