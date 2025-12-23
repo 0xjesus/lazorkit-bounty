@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "patch-package && next build",
+    "build": "npx patch-package && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "patch-package || true"
+    "postinstall": "npx patch-package || true"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
