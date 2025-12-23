@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.3.3-" + Date.now();
+const BUILD_VERSION = "v1.3.4-" + Date.now();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
@@ -560,14 +560,11 @@ function WalletDemo() {
       console.log('   Keys:', instruction.keys.map(k => ({ pubkey: k.pubkey.toBase58(), isSigner: k.isSigner, isWritable: k.isWritable })));
 
       console.log('%c📤 Calling signAndSendTransaction...', 'color: #22c55e; font-weight: bold');
-      console.log('   Options:', { computeUnitLimit: 200_000, clusterSimulation: 'devnet' });
+      console.log('   Using MINIMAL options (no transactionOptions)');
 
+      // Try without any transaction options - let SDK use defaults
       const sig = await signAndSendTransaction({
         instructions: [instruction],
-        transactionOptions: {
-          computeUnitLimit: 200_000,
-          clusterSimulation: 'devnet',
-        }
       });
 
       console.log('%c✅ TRANSACTION SUCCESS!', 'color: #22c55e; font-size: 16px; font-weight: bold');
