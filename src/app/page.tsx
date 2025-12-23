@@ -15,8 +15,8 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v2.1.0-SDK-PATCHED-FORCE";
-const BUILD_TIME = "2025-12-23T08:15:00Z";
+const BUILD_VERSION = "v2.2.0-CLEAR-STATE";
+const BUILD_TIME = "2025-12-23T08:30:00Z";
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  🔥 LAZORKIT PLAYGROUND - SDK PATCHED VERSION                ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
@@ -325,7 +325,12 @@ function WalletDemo() {
 
   // DEBUG: Clear all LazorKit data and force fresh wallet
   const handleForceReset = useCallback(async () => {
-    console.log('%c🔥 FORCE RESET - Clearing ALL LazorKit data...', 'color: #ef4444; font-size: 18px; font-weight: bold');
+    console.log('%c🔥 NUCLEAR RESET - Clearing EVERYTHING...', 'color: #ef4444; font-size: 24px; font-weight: bold');
+
+    // Show confirmation
+    if (!confirm('⚠️ This will clear ALL wallet data and reload the page.\n\nYou will need to create a NEW wallet.\n\nContinue?')) {
+      return;
+    }
 
     // Disconnect first
     try {
@@ -334,36 +339,32 @@ function WalletDemo() {
       console.log('Disconnect error (ignored):', e);
     }
 
-    // Clear all localStorage keys that LazorKit might use
-    const lazorkitKeys = [
-      'lazorkit-wallet',
-      'lazorkit-credentials',
-      'lazorkit-wallet-store',
-      'CREDENTIAL_ID',
-      'PUBLIC_KEY',
-      'SMART_WALLET_ADDRESS',
-      'CREDENTIALS_TIMESTAMP',
-      STORAGE_KEYS.LOGS,
-      STORAGE_KEYS.TRANSACTIONS,
-      STORAGE_KEYS.LAST_WALLET,
-    ];
+    // NUCLEAR OPTION: Clear EVERYTHING
+    console.log('🧹 Clearing ALL localStorage...');
+    localStorage.clear();
 
-    lazorkitKeys.forEach(key => {
-      const value = localStorage.getItem(key);
-      if (value) {
-        console.log(`  Removing ${key}:`, value.slice(0, 50) + '...');
-        localStorage.removeItem(key);
-      }
-    });
+    console.log('🧹 Clearing ALL sessionStorage...');
+    sessionStorage.clear();
 
-    // Also check for any other lazorkit-related keys
-    const allKeys = Object.keys(localStorage);
-    allKeys.forEach(key => {
-      if (key.toLowerCase().includes('lazor') || key.toLowerCase().includes('passkey')) {
-        console.log(`  Found and removing: ${key}`);
-        localStorage.removeItem(key);
-      }
-    });
+    // Clear IndexedDB if any
+    try {
+      const databases = await indexedDB.databases();
+      databases.forEach(db => {
+        if (db.name) {
+          console.log(`🧹 Deleting IndexedDB: ${db.name}`);
+          indexedDB.deleteDatabase(db.name);
+        }
+      });
+    } catch (e) {
+      console.log('IndexedDB clear skipped:', e);
+    }
+
+    console.log('%c✅ ALL DATA CLEARED - Reloading...', 'color: #22c55e; font-size: 18px; font-weight: bold');
+
+    // Force reload without cache
+    setTimeout(() => {
+      window.location.href = window.location.origin + window.location.pathname + '?reset=' + Date.now();
+    }, 500);
 
     // Reset state
     setLogs([]);
@@ -772,14 +773,21 @@ function WalletDemo() {
                 <button onClick={handleDisconnect} className="p-2 hover:bg-white/10 rounded-lg border border-white/10" title="Disconnect">
                   <LogOut className="h-4 w-4 text-zinc-400" />
                 </button>
-                <button onClick={handleForceReset} className="p-2 hover:bg-red-500/20 rounded-lg border border-red-500/20 text-red-400" title="Reset Wallet (Debug)">
-                  <Trash2 className="h-4 w-4" />
+                <button onClick={handleForceReset} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/20 rounded-lg border border-red-500/30 text-red-400 hover:text-red-300 text-xs font-medium transition-all" title="Clear all wallet data and start fresh">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Clear State</span>
                 </button>
               </>
             ) : (
+              <>
+              <button onClick={handleForceReset} className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-red-500/20 rounded-lg border border-red-500/30 text-red-400 hover:text-red-300 text-xs font-medium transition-all" title="Clear all wallet data and start fresh">
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Clear State</span>
+              </button>
               <a href="https://github.com/0xjesus/lazorkit-bounty" target="_blank" className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white">
                 <Github className="h-4 w-4" /> <span className="hidden sm:inline">Source Code</span>
               </a>
+              </>
             )}
           </div>
         </div>
