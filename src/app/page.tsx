@@ -15,8 +15,8 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v2.0.0-SDK-PATCHED";
-const BUILD_TIME = "2025-12-23T07:45:00Z";
+const BUILD_VERSION = "v2.1.0-SDK-PATCHED-FORCE";
+const BUILD_TIME = "2025-12-23T08:15:00Z";
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  🔥 LAZORKIT PLAYGROUND - SDK PATCHED VERSION                ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
