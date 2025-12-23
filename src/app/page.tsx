@@ -15,7 +15,7 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v3.1.0-CORRECT-FIX";
+const BUILD_VERSION = "v3.2.0-RECIPIENT-FIX";
 const BUILD_TIME = new Date().toISOString();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  🔥 LAZORKIT PLAYGROUND - SIGNATURE FIX                      ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
@@ -622,13 +622,16 @@ function WalletDemo() {
         console.log('   passkeyPubkey is array:', Array.isArray(wallet.passkeyPubkey));
       }
 
+      // Use a real recipient address
+      const recipientAddress = new PublicKey("8X35rQUK2u9hfn8rMPwwr6ZSEUhbmfDPEapp589XyoM1");
+
       console.log('%c📋 Transaction Details:', 'color: #3b82f6; font-weight: bold');
       console.log('   From (smartWallet):', smartWalletPubkey.toBase58());
-      console.log('   To (self-transfer):', smartWalletPubkey.toBase58());
+      console.log('   To (recipient):', recipientAddress.toBase58());
       console.log('   Amount:', 100, 'lamports');
 
       console.log('%c🔧 Creating instruction...', 'color: #8b5cf6');
-      const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: smartWalletPubkey, lamports: 100 });
+      const instruction = SystemProgram.transfer({ fromPubkey: smartWalletPubkey, toPubkey: recipientAddress, lamports: 100 });
       console.log('   Instruction created:', instruction);
       console.log('   Program ID:', instruction.programId.toBase58());
       console.log('   Keys:', instruction.keys.map(k => ({ pubkey: k.pubkey.toBase58(), isSigner: k.isSigner, isWritable: k.isWritable })));
@@ -676,8 +679,18 @@ function WalletDemo() {
         console.error('Error code:', errorObj.code);
       }
 
-      addLog('error', 'Transaction failed', (err as Error).message);
-      addTransaction({ signature: '', type: 'transfer', status: 'failed', details: (err as Error).message });
+      // Check for chunk-related errors (stale transaction state)
+      const errorMessage = (err as Error)?.message || '';
+      if (errorMessage.includes('Account does not exist') || errorMessage.includes('no data')) {
+        console.log('%c⚠️ CHUNK STATE ERROR - This is a known issue with stale transaction state', 'color: #f59e0b; font-weight: bold');
+        console.log('   The previous transaction may have left an inconsistent state.');
+        console.log('   Try disconnecting and reconnecting your wallet.');
+        addLog('error', 'Stale state - try reconnecting wallet');
+        addTransaction({ signature: '', type: 'transfer', status: 'failed', details: 'Stale chunk state - reconnect wallet' });
+      } else {
+        addLog('error', 'Transaction failed', errorMessage);
+        addTransaction({ signature: '', type: 'transfer', status: 'failed', details: errorMessage });
+      }
     } finally {
       clearPendingLogs();
       // Unlock after a small delay to prevent immediate re-trigger
