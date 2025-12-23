@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "bash scripts/apply-fix.sh && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "bash scripts/apply-fix.sh || true"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
