@@ -15,15 +15,15 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v2.2.0-CLEAR-STATE";
-const BUILD_TIME = "2025-12-23T08:30:00Z";
+const BUILD_VERSION = "v3.0.0-S-NORMALIZATION-FIX";
+const BUILD_TIME = new Date().toISOString();
 console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold; font-size: 16px');
-console.log('%c║  🔥 LAZORKIT PLAYGROUND - SDK PATCHED VERSION                ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c║  🔥 LAZORKIT PLAYGROUND - S-NORMALIZATION FIX                ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c║  Built: ' + BUILD_TIME.padEnd(52) + '║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
-console.log('%c║  FIX: SHA256 hash added to secp256r1 verification           ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c║  FIX: Low-S normalization always applied to signatures      ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
 console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #f59e0b; font-weight: bold; font-size: 16px');
-console.log('%c🩹 PATCH APPLIED: @lazorkit/wallet secp256r1 message hash fix', 'color: #22c55e; font-weight: bold');
+console.log('%c🩹 PATCH: S > half_order now correctly normalized (was skipped for 64-byte sigs)', 'color: #22c55e; font-weight: bold');
 
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
