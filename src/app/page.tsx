@@ -15,12 +15,15 @@
 // =============================================================================
 // VERSION CHECK - This should appear FIRST in console
 // =============================================================================
-const BUILD_VERSION = "v1.5.0-" + Date.now();
-console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #22c55e; font-weight: bold; font-size: 14px');
-console.log('%c║  🚀 LAZORKIT PLAYGROUND LOADED                               ║', 'color: #22c55e; font-weight: bold; font-size: 14px');
-console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
-console.log('%c║  Time: ' + new Date().toISOString().padEnd(53) + '║', 'color: #22c55e; font-weight: bold; font-size: 14px');
-console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #22c55e; font-weight: bold; font-size: 14px');
+const BUILD_VERSION = "v2.0.0-SDK-PATCHED";
+const BUILD_TIME = "2025-12-23T07:45:00Z";
+console.log('%c╔══════════════════════════════════════════════════════════════╗', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c║  🔥 LAZORKIT PLAYGROUND - SDK PATCHED VERSION                ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c║  Build: ' + BUILD_VERSION.padEnd(52) + '║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c║  Built: ' + BUILD_TIME.padEnd(52) + '║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c║  FIX: SHA256 hash added to secp256r1 verification           ║', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c╚══════════════════════════════════════════════════════════════╝', 'color: #f59e0b; font-weight: bold; font-size: 16px');
+console.log('%c🩹 PATCH APPLIED: @lazorkit/wallet secp256r1 message hash fix', 'color: #22c55e; font-weight: bold');
 
 import { LazorkitProvider, useWallet } from "@lazorkit/wallet";
 import { Connection, SystemProgram, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
